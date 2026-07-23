@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+[v-cloak] { display: none; }
+
+/* 模擬台灣股市顏色規範：紅漲綠跌 */
+.text-tw-up { color: #f87171; }
+.text-tw-down { color: #34d399; }
+.bg-tw-up { background-color: rgba(239, 68, 68, 0.15); }
+.bg-tw-down { background-color: rgba(16, 185, 129, 0.15); }
+
+/* 自訂滾動條 */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #1e293b;
+}
+::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+/* 價格閃爍動畫 */
+@keyframes flashUp {
+    0% { background-color: rgba(239, 68, 68, 0.4); }
+    100% { background-color: transparent; }
+}
+@keyframes flashDown {
+    0% { background-color: rgba(16, 185, 129, 0.4); }
+    100% { background-color: transparent; }
+}
+.flash-up { animation: flashUp 0.8s ease-out; }
+.flash-down { animation: flashDown 0.8s ease-out; }
