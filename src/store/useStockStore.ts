@@ -307,6 +307,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
     minFee: 20
   },
   setHoldingForm: (form) => set((state) => ({ holdingForm: { ...state.holdingForm, ...form } })),
+  addSearchResults: [],
   searchAddStock: (query) => {
     const q = query.trim().toUpperCase();
     if (!q) {

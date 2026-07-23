@@ -16,7 +16,6 @@ export const Header: React.FC = () => {
     openAddModal,
     holdingsData,
     globalDiscount,
-    toggleLiveSimulation,
     canInstallPwa,
     triggerPwaInstall
   } = useStockStore();

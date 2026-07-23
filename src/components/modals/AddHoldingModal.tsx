@@ -1,6 +1,6 @@
 import React from 'react';
 import { useStockStore } from '../../store/useStockStore';
-import { calcTradeDetails, formatNum } from '../../utils/stockMath';
+import { calcTradeDetails, calcEtfPremiumDiscount, formatNum } from '../../utils/stockMath';
 
 export const AddHoldingModal: React.FC = () => {
   const {
