@@ -1,38 +1,50 @@
 # 台股即時庫存與交易計算系統 (Taiwan Stock Calculator)
 
-> 專為台股投資人與高頻交易者設計的**極速、隱私、高效率**本機即時庫存與成交試算系統。採用 **Vite + React (TypeScript) + Zustand + Dexie.js (IndexedDB) + Tailwind CSS** 現代化架構開發。
+> 專為台股投資人與高頻交易者設計的**極速、隱私、高效率**本機即時庫存與成交試算系統。採用 **Vite + React (TypeScript) + Zustand + Dexie.js (IndexedDB) + Tailwind CSS** 現代化架構開發，支援 **PWA 獨立桌面程式安裝** 與 **GitHub Actions 自動化部署**。
 
 ---
 
-## 🌟 核心特色與功能亮點
+## 🌟 最新功能與修改更新說明 (Release Updates)
 
-### 1. ⚡ 交易時間動態判定與 TWSE/TPEx 公開 API 行情連動
-- **交易時段智慧判定**：自動判斷台北時間 (Mon-Fri 09:00 - 13:30)。
-  - **盤中連動 (`🟢 連動中 (盤中)`)**：每 15 秒實時對接證交所 (TWSE) 與櫃買中心 (TPEx) 公開 API 更新現價與漲跌。
-  - **盤後/假日 (`🟡 連動中 (盤後價)`)**：自動載入當日最新真實盤後收盤價，停止頻繁請求節省網路流量。
-- **價格視覺閃爍動畫**：現價變動時自動觸發台灣股市規範之紅漲（`flash-up`）與綠跌（`flash-down`）閃爍動畫。
+### 1. 📲 PWA 裝置桌面程式化 (Desktop & Mobile PWA App)
+- **獨立 App 視窗體驗**：支援 Windows / Mac 桌面圖示與 iOS / Android 手機主畫面安裝。
+- **一鍵觸發安裝**：介面頂部與設定頁新增「📲 安裝 App」按鈕，點擊即可直接喚起瀏覽器原生安裝提示。
+- **離線快取支援**：配置 `sw.js` (Service Worker)，斷網狀態下亦可開啟應用程式存取本機庫存。
 
-### 2. 🔍 全台股與主動/被動型 ETF 即時過濾搜尋
-- **全台股與熱門 ETF 資料庫**：支援搜尋代號（如 `2330`、`2603`、`00878`）或名稱（如 `台積電`、`長榮`）。
-- **完整支援主動型 ETF**：包含 `00403A` (主動統一升級50)、`00405A` (主動富邦台灣龍耀) 等最新主動型 ETF。
-- **手動價位自由修改**：搜尋點擊帶入報價後，買進價與現價仍保持完全可手動輸入與調整。
-- **自訂標的保底機制**：輸入任意尚未掛牌或特殊代號皆可快速新增點選。
+### 2. 📊 ETF 基金淨值 (NAV) 與折溢價金額換算
+- **即時折溢價試算**：新增/編輯 ETF 持股時填寫估計淨值 (NAV)，自動計算每股折溢價點數 (如 `+$0.50`) 與百分比 (`+0.29%`)。
+- **持股折溢價金額換算**：依據持股數量，自動換算全持股相當於多付或省下多少新台幣元（如 `持股溢價總額 +$2,500 元`）。
+- **專屬顏色徽章**：庫存卡牌項目以亮紅（溢價）與翡翠綠（折價）顯示提示區塊。
 
-### 3. 📊 ETF 基金淨值 (NAV) 與折溢價金額換算
-- **折溢價點數試算**：輸入估計淨值 (NAV) 即時計算每股折溢價差額 (`+$0.50`) 與百分比 (`+0.29%`)。
-- **持股折溢價金額換算**：自動依據持股張數/股數，換算全持股相當於多付或省下多少新台幣元（例如：`持股溢價總額 +$2,500 元`）。
-- **專屬顏色徽章**：庫存卡牌上以亮紅 (溢價) 與翡翠綠 (折價) 標示。
+### 3. 🔍 主動型 ETF (`00403A` / `00405A`) 與全上櫃標的對接
+- **雙重 API 報價對接**：同時對接 `TWSE` 證交所與 `TPEx` 櫃買中心公開 API，實時抓取上櫃股票與主動型 ETF 價格。
+- **預載與模糊比對**：預載包含 `00403A` (主動統一升級50)、`00405A` (主動富邦台灣龍耀) 等熱門主動型 ETF，支援不分大小寫比對（如輸入 `00403a`）。
+- **保底自訂新增**：輸入任意新掛牌或特殊代號，自動提供「點擊手動填價」選項，100% 無阻礙帶入。
 
-### 4. 🔗 點擊股票代號連至 Yahoo 股市 (Yahoo Finance)
-- **一鍵跳轉查 K 線**：點擊庫存卡牌、歷史紀錄或熱門觀察清單之股票代號，自動開啟新分頁連至 Yahoo 股市行情頁面 (`https://tw.stock.yahoo.com/quote/SYMBOL.TW`)。
+### 4. 🔗 點擊股票代號跳轉 Yahoo 股市 (Yahoo Finance)
+- **一鍵查 K 線與即時走勢**：點擊庫存卡牌標題或觀察清單旁的外連圖示 <i class="fa-solid fa-arrow-up-right-from-square"></i>，自動於新分頁開啟 Yahoo 股市對應行情頁面（如 `https://tw.stock.yahoo.com/quote/00403A.TW`）。
 
-### 5. 🧮 7 種台股標準交易類型與 0 折手續費試算
+### 5. 🤖 GitHub Actions 自動化 CI/CD 部署 (修復 404 / 空白網頁)
+- **自動化 Build & Deploy**：內建 `.github/workflows/deploy.yml`。推送程式碼至 `main` 分支時，GitHub Actions 會自動完成 `npm run build` 並部署至 GitHub Pages，徹底避免舊版純靜態伺服器讀取未編譯 `.tsx` 導致的 404 與空白網頁問題。
+
+### 6. 🧮 對話框遮檔修復 (Z-Index Stacking Layering Fix)
+- 將交易類型選擇視窗 (`TradeTypeModal`) 層級設為 `z-[60]`，擺脫以往在新增庫存彈窗 (`z-50`) 中點擊時被遮檔點不到的問題。
+
+---
+
+## ⚡ 核心基礎特色
+
+### 1. 交易時間動態判定與實時行情連動
+- **交易時段智慧判定**：台北時間 Mon-Fri 09:00 - 13:30 (`🟢 連動中 (盤中)`) 每 15 秒連動最新現價；非交易時段 (`🟡 連動中 (盤後價)`) 顯示最新盤後真實收盤價。
+- **紅漲綠跌閃爍動畫**：現價跳動時自動發送台灣股市規範之紅漲（`flash-up`）與綠跌（`flash-down`）閃爍動畫。
+
+### 2. 7 種台股標準交易類型與 0 折手續費試算
 - 支援 **多-現股交易**、**多-資買券賣**、**空-券賣資買**、**多-資買資賣**、**空-券賣券買**、**多-現股當沖**、**空-現股當沖**。
 - 精準計算手續費（支援 0 折免手續費與低限金額）、證交稅（股票 0.3%, ETF 0.1%, 當沖 0.15%）、做多做空損益與打平保本價。
 
-### 6. 🔒 100% 本機數據隱私與 JSON 備份還原
+### 3. 100% 本機數據隱私與 JSON 備份還原
 - **零伺服器傳輸**：採用 Dexie.js (IndexedDB) 儲存於使用者本機瀏覽器中，資料完全個人掌控。
-- **JSON 備份與還原**：支援完整庫存、歷史紀錄與券商折數一鍵匯出 JSON 備份檔與極速還原。
+- **JSON 備份與還原**：支援完整庫存、歷史紀錄與券商折數一鍵匯出 JSON 備份檔與還原。
 
 ---
 
@@ -43,6 +55,7 @@
 - **狀態管理**：Zustand 4 (Atomic 輕量狀態訂閱，60fps 不卡頓)
 - **本機資料庫**：Dexie.js 4 (IndexedDB)
 - **UI 與 CSS**：Tailwind CSS 3 + FontAwesome 6 Icons
+- **PWA 支援**：Web App Manifest + Service Worker (`sw.js`)
 - **數據源**：TWSE 台灣證券交易所與 TPEx 櫃買中心 OpenAPI
 
 ---
@@ -51,36 +64,43 @@
 
 ```text
 stock-cal/
-├── index.html                  # Vite 主入口點
-├── package.json                # 專案依賴與腳本
+├── index.html                  # Vite 主入口點 (PWA 設定)
+├── package.json                # 專案依賴與 Build/Deploy 腳本
 ├── vite.config.ts              # Vite 構建設定
 ├── tailwind.config.js          # Tailwind 樣式設定
 ├── tsconfig.json               # TypeScript 設定
+├── public/
+│   ├── favicon.svg             # PWA 高畫質向量 Icon
+│   ├── manifest.json           # Web App Manifest
+│   └── sw.js                   # Service Worker 離線快取
+├── .github/
+│   └── workflows/
+│       └── deploy.yml          # GitHub Actions 自動部署工作流
 ├── src/
 │   ├── types/
-│   │   └── stock.ts            # 股票、帳戶與表單型別定義
+│   │   └── stock.ts            # 股票、NAV與交易類別型別定義
 │   ├── utils/
 │   │   └── stockMath.ts        # 交易計算、手續費、折溢價純函數
 │   ├── services/
-│   │   └── twseApi.ts          # TWSE/TPEx OpenAPI 與交易時間判定
+│   │   └── twseApi.ts          # TWSE/TPEx OpenAPI 雙數據源對接
 │   ├── db/
 │   │   └── stockDb.ts          # Dexie.js IndexedDB 本機資料庫
 │   ├── store/
-│   │   └── useStockStore.ts    # Zustand 全域狀態庫
+│   │   └── useStockStore.ts    # Zustand 全域狀態與 PWA Prompt
 │   ├── components/
-│   │   ├── Header.tsx          # 頂部帳戶切換與總市值卡片
-│   │   ├── HoldingsTab.tsx     # 庫存管理與折溢價卡片
-│   │   ├── CalculatorTab.tsx   # 成交試算
+│   │   ├── Header.tsx          # 頂部帳戶切換與 PWA 安裝鈕
+│   │   ├── HoldingsTab.tsx     # 庫存管理與 ETF 折溢價卡片
+│   │   ├── CalculatorTab.tsx   # 即時成交試算
 │   │   ├── HistoryTab.tsx      # 歷史平倉紀錄與勝率
-│   │   ├── MarketTab.tsx       # 熱門觀察清單
-│   │   ├── SettingsTab.tsx     # 折數設定與 JSON 備份還原
+│   │   ├── MarketTab.tsx       # 熱門觀察清單與外連
+│   │   ├── SettingsTab.tsx     # 折數設定、PWA 安裝與 JSON 備份
 │   │   └── modals/
 │   │       ├── AddHoldingModal.tsx    # 新增庫存 (z-50)
-│   │       ├── TradeTypeModal.tsx     # 交易類型選擇對話框 (z-[60])
+│   │       ├── TradeTypeModal.tsx     # 交易類型選單 (z-[60])
 │   │       ├── ProfitSummaryModal.tsx # 獲利試算彈窗
 │   │       ├── SellModal.tsx          # 平倉賣出彈窗
 │   │       └── AccountModal.tsx       # 帳戶切換彈窗
-│   ├── App.tsx                 # 主應用組件
+│   ├── App.tsx                 # 主應用組件與 SW 註冊
 │   ├── main.tsx                # 入口檔案
 │   └── index.css               # 全域 CSS 與閃爍動畫
 └── README.md
@@ -88,9 +108,9 @@ stock-cal/
 
 ---
 
-## 🚀 快速開始 (Quick Start)
+## 🚀 快速開始與部署 (Quick Start & Deployment)
 
-### 本地開發 (Local Development)
+### 1. 本地開發 (Local Development)
 
 ```bash
 # 安裝依賴套件
@@ -100,14 +120,17 @@ npm install
 npm run dev
 ```
 
-### 打包構建與 GitHub Pages 靜態部署
+### 2. GitHub Pages 自動化部署 (Automated Deploy)
+
+只需將修改推送到 GitHub 儲存庫：
 
 ```bash
-# 編譯打包靜態資源
-npm run build
+git add .
+git commit -m "feat: Add PWA desktop support and ETF NAV discount calculations"
+git push origin main
 ```
 
-打包產出之 `dist/` 目錄包含 100% 純靜態資源（HTML/JS/CSS），可直接部署至 GitHub Pages 免費託管。
+> **注意**：請確保 GitHub 專案庫 **Settings** ➔ **Pages** ➔ **Source** 選項設定為 **`GitHub Actions`**。推送到分支後，GitHub Actions 會自動執行建置與部署。
 
 ---
 

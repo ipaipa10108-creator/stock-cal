@@ -27,6 +27,21 @@ export const App: React.FC = () => {
     checkAndUpdateMarketHours();
     refreshPrices();
 
+    // Register PWA Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW register notice:', err));
+      });
+    }
+
+    // Capture PWA Install Prompt
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      useStockStore.getState().setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
     const timer = setInterval(() => {
       if (useStockStore.getState().isLiveSimulating) {
         refreshPrices();
@@ -44,6 +59,7 @@ export const App: React.FC = () => {
     return () => {
       clearInterval(timer);
       document.removeEventListener('click', handleClickOutside);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, []);
 

@@ -1,0 +1,20 @@
+{
+  "short_name": "台股計算機",
+  "name": "台股即時庫存與交易計算系統",
+  "description": "專業台股即時庫存、折溢價計算與成交試算 PWA 應用程式",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#090d16",
+  "theme_color": "#0f172a",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "./",
+  "categories": ["finance", "utilities"]
+}

@@ -15,7 +15,10 @@ export const Header: React.FC = () => {
     isMarketOpen,
     openAddModal,
     holdingsData,
-    globalDiscount
+    globalDiscount,
+    toggleLiveSimulation,
+    canInstallPwa,
+    triggerPwaInstall
   } = useStockStore();
 
   const currentAccount = accounts.find((a) => a.id === currentAccountId) || accounts[0];
@@ -88,6 +91,16 @@ export const Header: React.FC = () => {
 
         {/* 動態連動與動作按鈕 */}
         <div className="flex items-center space-x-2">
+          {canInstallPwa && (
+            <button
+              onClick={triggerPwaInstall}
+              title="安裝本系統至桌面 / 手機主畫面"
+              className="text-xs bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 text-white font-bold px-2 py-1 rounded-md shadow flex items-center space-x-1"
+            >
+              <i className="fa-solid fa-download text-[11px]"></i>
+              <span>安裝 App</span>
+            </button>
+          )}
           <button
             onClick={toggleLiveSim}
             title={liveStatusTooltip}

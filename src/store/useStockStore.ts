@@ -71,6 +71,12 @@ interface StockStore {
   showSellModal: boolean;
   setShowSellModal: (val: boolean) => void;
 
+  // PWA Installation
+  deferredPrompt: any;
+  canInstallPwa: boolean;
+  setDeferredPrompt: (promptEvent: any) => void;
+  triggerPwaInstall: () => Promise<void>;
+
   // Accounts & Data
   accounts: Account[];
   currentAccountId: string;
@@ -157,6 +163,22 @@ export const useStockStore = create<StockStore>((set, get) => ({
   setShowAccountModal: (val) => set({ showAccountModal: val }),
   showSellModal: false,
   setShowSellModal: (val) => set({ showSellModal: val }),
+
+  deferredPrompt: null,
+  canInstallPwa: false,
+  setDeferredPrompt: (promptEvent) => set({ deferredPrompt: promptEvent, canInstallPwa: !!promptEvent }),
+  triggerPwaInstall: async () => {
+    const promptEvent = get().deferredPrompt;
+    if (!promptEvent) {
+      alert('請直接透過瀏覽器選單點擊「加到主畫面」或「安裝應用程式」');
+      return;
+    }
+    promptEvent.prompt();
+    const choiceResult = await promptEvent.userChoice;
+    if (choiceResult.outcome === 'accepted') {
+      set({ deferredPrompt: null, canInstallPwa: false });
+    }
+  },
 
   accounts: [
     { id: 'acc-1', name: '帳戶-1' },

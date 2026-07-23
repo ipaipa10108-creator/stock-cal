@@ -11,7 +11,9 @@ export const SettingsTab: React.FC = () => {
     holdingsData,
     historyData,
     importDataFromJson,
-    resetCurrentAccountData
+    resetCurrentAccountData,
+    canInstallPwa,
+    triggerPwaInstall
   } = useStockStore();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -83,6 +85,20 @@ export const SettingsTab: React.FC = () => {
           />
           <p className="text-[11px] text-slate-500 mt-1">
             用於『獲利試算』對話框中顯示『投資上限』與『尚可投資』
+          </p>
+        </div>
+
+        <div className="pt-2 border-t border-slate-700 space-y-2">
+          <div className="text-xs font-bold text-slate-300">桌面與手機 APP 安裝 (PWA)</div>
+          <button
+            onClick={triggerPwaInstall}
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white p-2.5 rounded-lg text-xs font-bold flex justify-center items-center space-x-1.5 shadow"
+          >
+            <i className="fa-solid fa-desktop"></i>
+            <span>安裝至電腦桌面 / 手機主畫面 App</span>
+          </button>
+          <p className="text-[11px] text-slate-400">
+            支援 Windows / Mac 桌面圖示與 iOS / Android 沉浸式獨立 App 開啟。
           </p>
         </div>
 
