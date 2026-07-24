@@ -21,6 +21,16 @@ export interface StockQuote {
   nav?: number;
 }
 
+export interface HoldingLot {
+  id: string;
+  buyPrice: number;
+  shares: number;
+  date: string;
+  tradeType?: TradeTypeOption;
+  discount?: number;
+  minFee?: number;
+}
+
 export interface HoldingItem {
   id: string;
   symbol: string;
@@ -35,6 +45,7 @@ export interface HoldingItem {
   date: string;
   flashClass?: string;
   nav?: number;
+  lots?: HoldingLot[];
 }
 
 export interface ComputedHolding extends HoldingItem {
@@ -89,5 +100,6 @@ export interface HoldingFormState {
   date: string;
   minFee: number;
   nav?: number;
+  lots?: HoldingLot[];
 }
 

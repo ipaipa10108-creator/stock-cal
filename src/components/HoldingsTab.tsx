@@ -16,6 +16,7 @@ export const HoldingsTab: React.FC = () => {
     openEditModal,
     openSellModal,
     deleteHolding,
+    splitMergedHolding,
     themeMode
   } = useStockStore();
 
@@ -71,6 +72,14 @@ export const HoldingsTab: React.FC = () => {
 
   return (
     <div className="space-y-3">
+      {/* 總筆數提示與分類篩選 */}
+      <div className="flex items-center justify-between text-xs px-1 font-bold">
+        <span className={isLight ? 'text-slate-600' : 'text-slate-300'}>
+          <i className="fa-solid fa-layer-group text-blue-500 mr-1.5"></i>
+          庫存筆記 (顯示 {filtered.length} 筆 / 共 {currentList.length} 筆資料)
+        </span>
+      </div>
+
       {/* 分類與排序列 */}
       <div className={`flex items-center justify-between p-1.5 rounded-lg border transition ${
         isLight ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-700'
@@ -167,6 +176,35 @@ export const HoldingsTab: React.FC = () => {
                   <div className={`text-[10px] mt-1 ${isLight ? 'text-slate-400 font-medium' : 'text-slate-400'}`}>{item.date}</div>
                 </div>
               </div>
+
+              {/* 合併明細與拆回按鈕區塊 */}
+              {item.lots && item.lots.length > 1 && (
+                <div className={`mt-2 p-2 rounded-lg text-xs border space-y-1.5 ${
+                  isLight ? 'bg-blue-50 border-blue-200 text-blue-900' : 'bg-slate-900/90 border-blue-500/40 text-blue-200'
+                }`}>
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold flex items-center space-x-1">
+                      <i className="fa-solid fa-object-group text-blue-400"></i>
+                      <span>已加權合併 {item.lots.length} 筆筆記 (平均成本 ${item.buyPrice})</span>
+                    </span>
+                    <button
+                      onClick={() => splitMergedHolding(item.id)}
+                      className="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded text-[11px] shadow transition"
+                    >
+                      <i className="fa-solid fa-code-branch mr-1"></i>
+                      拆回獨立筆記
+                    </button>
+                  </div>
+                  <div className="divide-y divide-blue-200/40 text-[11px] pt-1">
+                    {item.lots.map((lot, idx) => (
+                      <div key={lot.id || idx} className="py-1 flex justify-between">
+                        <span>第 {idx + 1} 筆 購買日期: <strong>{lot.date}</strong></span>
+                        <span>買價: <strong>${lot.buyPrice}</strong> | 股數: <strong>{formatNum(lot.shares)}股</strong></span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* ETF 專屬折溢價提示區塊 */}
               {(() => {

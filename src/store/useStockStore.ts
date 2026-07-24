@@ -9,7 +9,8 @@ import {
   HoldingFormState,
   CalcFormState,
   ComputedHolding,
-  ApiProvider
+  ApiProvider,
+  HoldingLot
 } from '../types/stock';
 import { calcTradeDetails } from '../utils/stockMath';
 import { checkTradingHours, fetchQuotesByProvider, fetchSingleYahooQuote } from '../services/twseApi';
@@ -110,6 +111,7 @@ interface StockStore {
   openEditModal: (item: HoldingItem) => void;
   saveHolding: () => Promise<void>;
   deleteHolding: (id: string) => void;
+  splitMergedHolding: (holdingId: string) => void;
   resetCurrentAccountData: () => void;
   importDataFromJson: (parsed: any) => boolean;
 
@@ -628,26 +630,32 @@ export const useStockStore = create<StockStore>((set, get) => ({
     const inputRaw = (f.symbolSearch || f.symbol || '').trim().toUpperCase();
     if (!inputRaw) return;
 
-    let symbol = f.symbol;
-    let name = f.name;
+    let symbol = f.symbol ? f.symbol.trim().toUpperCase() : '';
+    let name = f.name ? f.name.trim() : '';
     let curPrice = f.currentPrice;
     let buyPrice = f.buyPrice;
 
     const map = get().fullStockMap;
 
-    let found = Object.values(map).find(s => 
-      s.code.toUpperCase() === inputRaw || 
-      s.name.toUpperCase() === inputRaw ||
-      inputRaw.startsWith(s.code.toUpperCase()) ||
-      inputRaw.includes(s.name.toUpperCase())
-    );
-
-    if (found) {
-      symbol = found.code;
-      name = found.name;
+    // Strict symbol/name resolution to prevent substring matching bugs (e.g. 台塑 matching 台塑化)
+    if (symbol && map[symbol]) {
+      name = map[symbol].name || name || symbol;
     } else {
-      symbol = inputRaw;
-      name = inputRaw;
+      const cleanRaw = inputRaw.replace(/\s*-\s*.*/, '').trim();
+      const exactFound = Object.values(map).find(s => 
+        s.code.toUpperCase() === cleanRaw || 
+        s.name.toUpperCase() === cleanRaw ||
+        s.code.toUpperCase() === inputRaw ||
+        s.name.toUpperCase() === inputRaw
+      );
+
+      if (exactFound) {
+        symbol = exactFound.code;
+        name = exactFound.name;
+      } else {
+        symbol = cleanRaw || inputRaw;
+        name = cleanRaw || inputRaw;
+      }
     }
 
     // Always fetch live real-time price
@@ -660,9 +668,9 @@ export const useStockStore = create<StockStore>((set, get) => ({
       curPrice = liveQuote.price;
       if (!buyPrice || buyPrice === 0) buyPrice = liveQuote.price;
       set({ fullStockMap: { ...get().fullStockMap, [symbol]: liveQuote } });
-    } else if (found && found.price > 0) {
-      if (!curPrice || curPrice === 0) curPrice = found.price;
-      if (!buyPrice || buyPrice === 0) buyPrice = found.price;
+    } else if (map[symbol] && map[symbol].price > 0) {
+      if (!curPrice || curPrice === 0) curPrice = map[symbol].price;
+      if (!buyPrice || buyPrice === 0) buyPrice = map[symbol].price;
     }
 
     if (!buyPrice && curPrice) buyPrice = curPrice;
@@ -672,13 +680,82 @@ export const useStockStore = create<StockStore>((set, get) => ({
     const holdings = { ...get().holdingsData };
     if (!holdings[accId]) holdings[accId] = [];
 
+    // Duplicate stock detection in active account
+    const existingIdx = holdings[accId].findIndex(
+      h => h.symbol.toUpperCase() === symbol.toUpperCase() && 
+           h.tradeType === f.tradeType && 
+           (!get().isEditingHolding || h.id !== f.id)
+    );
+
+    if (existingIdx !== -1 && !get().isEditingHolding) {
+      const existingItem = holdings[accId][existingIdx];
+      const confirmMerge = window.confirm(
+        `檢測到目前帳戶已持有相同的股票筆記！\n\n【${symbol} - ${name} (${f.tradeType})】\n` +
+        `• 現有持股：${existingItem.shares} 股 @ $${existingItem.buyPrice}\n` +
+        `• 新增持股：${f.shares} 股 @ $${buyPrice || 0}\n\n` +
+        `【確定】: 自動計算加權平均成本並【合併計算】（保留各筆購買日期細節，可隨時拆回）\n` +
+        `【取消】: 保持分開，保存為獨立庫存筆記`
+      );
+
+      if (confirmMerge) {
+        const existingLots: HoldingLot[] = existingItem.lots && existingItem.lots.length > 0
+          ? existingItem.lots
+          : [{
+              id: 'lot-' + existingItem.id,
+              buyPrice: existingItem.buyPrice,
+              shares: existingItem.shares,
+              date: existingItem.date,
+              tradeType: existingItem.tradeType
+            }];
+
+        const newLot: HoldingLot = {
+          id: 'lot-' + Date.now(),
+          buyPrice: buyPrice || 0,
+          shares: f.shares,
+          date: f.date,
+          tradeType: f.tradeType
+        };
+
+        const mergedLots = [...existingLots, newLot];
+        const totalShares = mergedLots.reduce((sum, l) => sum + l.shares, 0);
+        const totalCostSum = mergedLots.reduce((sum, l) => sum + (l.buyPrice * l.shares), 0);
+        const weightedBuyPrice = totalShares > 0 ? parseFloat((totalCostSum / totalShares).toFixed(2)) : (buyPrice || 0);
+
+        const mergedItem: HoldingItem = {
+          ...existingItem,
+          symbol,
+          name,
+          buyPrice: weightedBuyPrice,
+          currentPrice: curPrice || existingItem.currentPrice,
+          shares: totalShares,
+          lots: mergedLots
+        };
+
+        holdings[accId][existingIdx] = mergedItem;
+        set({ holdingsData: holdings, showAddModal: false });
+        get().saveToStorage();
+        get().setToastMessage(`已成功將庫存合併！加權平均價：$${weightedBuyPrice}`);
+        setTimeout(() => get().setToastMessage(null), 3000);
+        return;
+      }
+    }
+
+    const defaultLot: HoldingLot = {
+      id: 'lot-' + (f.id || Date.now()),
+      buyPrice: buyPrice || 0,
+      shares: f.shares,
+      date: f.date,
+      tradeType: f.tradeType
+    };
+
     const itemToSave: HoldingItem = {
       ...f,
       symbol,
       name,
       buyPrice: buyPrice || 0,
       currentPrice: curPrice || 0,
-      assetType: f.assetType || (symbol.startsWith('00') ? 'ETF' : '股票')
+      assetType: f.assetType || (symbol.startsWith('00') ? 'ETF' : '股票'),
+      lots: f.lots || [defaultLot]
     };
 
     if (get().isEditingHolding) {
@@ -704,6 +781,45 @@ export const useStockStore = create<StockStore>((set, get) => ({
         set({ holdingsData: holdings });
         get().saveToStorage();
       }
+    }
+  },
+
+  splitMergedHolding: (holdingId) => {
+    const accId = get().currentAccountId;
+    const holdings = { ...get().holdingsData };
+    const list = holdings[accId] || [];
+    const idx = list.findIndex(h => h.id === holdingId);
+
+    if (idx === -1) return;
+    const item = list[idx];
+    if (!item.lots || item.lots.length <= 1) return;
+
+    if (confirm(`確定要將【${item.symbol} - ${item.name}】合併筆記拆回成 ${item.lots.length} 筆獨立庫存紀錄嗎？`)) {
+      list.splice(idx, 1);
+
+      item.lots.forEach((lot, i) => {
+        list.splice(idx + i, 0, {
+          id: 'h-split-' + Date.now() + '-' + i,
+          symbol: item.symbol,
+          name: item.name,
+          buyPrice: lot.buyPrice,
+          currentPrice: item.currentPrice,
+          shares: lot.shares,
+          discount: item.discount,
+          minFee: item.minFee,
+          assetType: item.assetType,
+          tradeType: lot.tradeType || item.tradeType,
+          date: lot.date,
+          nav: item.nav,
+          lots: [lot]
+        });
+      });
+
+      holdings[accId] = list;
+      set({ holdingsData: holdings });
+      get().saveToStorage();
+      get().setToastMessage(`已成功將庫存拆回成 ${item.lots.length} 筆獨立紀錄！`);
+      setTimeout(() => get().setToastMessage(null), 3000);
     }
   },
 
