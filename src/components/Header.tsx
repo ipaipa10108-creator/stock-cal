@@ -19,8 +19,16 @@ export const Header: React.FC = () => {
     canInstallPwa,
     triggerPwaInstall,
     themeMode,
-    toggleThemeMode
+    toggleThemeMode,
+    apiProvider
   } = useStockStore();
+
+  const providerLabelMap: Record<string, string> = {
+    yahoo: 'Yahoo即時',
+    twse_mis: 'MIS即時',
+    twse_openapi: 'OpenAPI',
+    auto: '智選即時'
+  };
 
   const currentAccount = accounts.find((a) => a.id === currentAccountId) || accounts[0];
   const list = holdingsData[currentAccountId] || [];
@@ -52,16 +60,15 @@ export const Header: React.FC = () => {
   const liveStatusText = !isLiveSimulating
     ? '靜態價'
     : isMarketOpen
-    ? '連動中 (盤中)'
-    : '連動中 (盤後價)';
+    ? `連動 (${providerLabelMap[apiProvider] || '即時'})`
+    : `連動 (${providerLabelMap[apiProvider] || '即時'})`;
 
   const liveStatusTooltip = !isLiveSimulating
     ? '即時數據連動已關閉'
-    : isMarketOpen
-    ? '即時連動中：交易時間 09:00~13:30，數據實時連動'
-    : '連動中：非交易時間，目前顯示最新盤後真實收盤價';
+    : `即時連動中 (目前數據源：${providerLabelMap[apiProvider] || '即時'})`;
 
   const isLight = themeMode === 'light';
+
 
   return (
     <header className={`p-3 sticky top-0 z-30 shadow-md border-b transition-colors ${
@@ -161,7 +168,7 @@ export const Header: React.FC = () => {
           </button>
 
           <button
-            onClick={refreshPrices}
+            onClick={() => refreshPrices(true)}
             title="手動更新價位 (觸發盤中/最新連動價)"
             className={`p-1.5 rounded-lg transition ${
               isLight

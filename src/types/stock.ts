@@ -1,5 +1,7 @@
 export type AssetType = '股票' | 'ETF';
 
+export type ApiProvider = 'yahoo' | 'twse_mis' | 'twse_openapi' | 'auto';
+
 export type TradeTypeOption = 
   | '多-現股交易'
   | '多-資買券賣'
@@ -88,3 +90,4 @@ export interface HoldingFormState {
   minFee: number;
   nav?: number;
 }
+

@@ -15,7 +15,9 @@ export const SettingsTab: React.FC = () => {
     canInstallPwa,
     triggerPwaInstall,
     themeMode,
-    setThemeMode
+    setThemeMode,
+    apiProvider,
+    setApiProvider
   } = useStockStore();
 
   const isLight = themeMode === 'light';
@@ -64,6 +66,48 @@ export const SettingsTab: React.FC = () => {
       </h2>
 
       <div className="space-y-4">
+        {/* 即時行情 API 數據源選擇區 */}
+        <div className={`p-3 rounded-xl border space-y-2 ${
+          isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/80 border-slate-700'
+        }`}>
+          <div className="flex items-center space-x-2">
+            <i className="fa-solid fa-cloud-arrow-down text-amber-500"></i>
+            <label className={`text-xs font-bold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>即時行情 API 數據源設定</label>
+          </div>
+          <p className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+            若連動價格未顯示最新盤中價，可切換不同報價來源（禁用虛擬模擬數據）：
+          </p>
+          <div className="space-y-2 pt-1">
+            {[
+              { id: 'yahoo', name: 'Yahoo 股市即時 API (推薦)', desc: '盤中真實高頻即時行情 (例如: 台泥 23.80)' },
+              { id: 'twse_mis', name: '台灣證交所 MIS 即時 API', desc: '證交所官方盤中即時撮合價庫 (包含最新成交價)' },
+              { id: 'twse_openapi', name: '證交所/櫃買 OpenAPI', desc: '官方每日盤後日摘要統計檔' },
+              { id: 'auto', name: '自動智選來源', desc: '盤中優先 Yahoo / MIS，備用多重自動切換' },
+            ].map(item => (
+              <div
+                key={item.id}
+                onClick={() => setApiProvider(item.id as any)}
+                className={`p-2.5 rounded-lg border cursor-pointer flex items-center justify-between transition ${
+                  apiProvider === item.id
+                    ? (isLight ? 'bg-amber-100/80 border-amber-500 text-amber-900 shadow-sm font-bold' : 'bg-blue-900/50 border-blue-500 text-white font-bold')
+                    : (isLight ? 'bg-white border-slate-200 hover:bg-slate-100 text-slate-700' : 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-300')
+                }`}
+              >
+                <div>
+                  <div className="text-xs font-bold flex items-center space-x-1.5">
+                    <i className={`fa-solid ${apiProvider === item.id ? 'fa-circle-check text-amber-500' : 'fa-circle text-slate-400 text-[10px]'}`}></i>
+                    <span>{item.name}</span>
+                  </div>
+                  <div className={`text-[10px] mt-0.5 ml-4 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{item.desc}</div>
+                </div>
+                {apiProvider === item.id && (
+                  <span className="text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded font-black shadow-xs">使用中</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* 主題選擇區 */}
         <div>
           <label className={`block text-xs mb-1 font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>介面主題 (日間 / 夜間模式)</label>
@@ -188,4 +232,5 @@ export const SettingsTab: React.FC = () => {
     </div>
   );
 };
+
 

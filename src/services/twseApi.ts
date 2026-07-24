@@ -1,4 +1,4 @@
-import { StockQuote } from '../types/stock';
+import { StockQuote, ApiProvider } from '../types/stock';
 
 export const checkTradingHours = (): boolean => {
   const now = new Date();
@@ -18,39 +18,141 @@ const cleanNum = (val: any): number => {
   return isNaN(num) ? 0 : num;
 };
 
+// CORS Proxy helper to ensure API calls work on GitHub Pages & local dev
+const fetchWithProxy = async (targetUrl: string): Promise<Response> => {
+  // 1. Direct fetch
+  try {
+    const res = await fetch(targetUrl);
+    if (res.ok) return res;
+  } catch (e) {
+    // CORS or network error, fallback to proxy
+  }
+
+  // 2. corsproxy.io
+  try {
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+    const res = await fetch(proxyUrl);
+    if (res.ok) return res;
+  } catch (e) {
+    // Continue to next proxy
+  }
+
+  // 3. allorigins.win
+  try {
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+    const res = await fetch(proxyUrl);
+    if (res.ok) return res;
+  } catch (e) {
+    // Continue
+  }
+
+  throw new Error(`Failed to fetch from ${targetUrl}`);
+};
+
+/**
+ * 1. Single Yahoo Quote Fetch (Intraday Real-Time)
+ */
 export const fetchSingleYahooQuote = async (code: string): Promise<StockQuote | null> => {
   const cleanCode = code.trim().toUpperCase();
   if (!cleanCode) return null;
 
   const suffixes = ['.TW', '.TWO'];
   for (const suf of suffixes) {
+    const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${cleanCode}${suf}`;
     try {
-      const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${cleanCode}${suf}`);
-      if (res.ok) {
-        const json = await res.json();
-        const meta = json?.chart?.result?.[0]?.meta;
-        if (meta && meta.regularMarketPrice) {
-          const price = cleanNum(meta.regularMarketPrice);
-          const prevClose = cleanNum(meta.chartPreviousClose || meta.previousClose || price);
-          const change = parseFloat((price - prevClose).toFixed(2));
-          const changePct = prevClose > 0 ? parseFloat(((change / prevClose) * 100).toFixed(2)) : 0;
-          return {
-            code: cleanCode,
-            name: meta.shortName || meta.symbol || cleanCode,
-            price,
-            change,
-            changePct,
-            type: cleanCode.startsWith('00') ? 'ETF' : '股票'
-          };
-        }
+      const res = await fetchWithProxy(targetUrl);
+      const json = await res.json();
+      const meta = json?.chart?.result?.[0]?.meta;
+      if (meta && meta.regularMarketPrice) {
+        const price = cleanNum(meta.regularMarketPrice);
+        const prevClose = cleanNum(meta.chartPreviousClose || meta.previousClose || price);
+        const change = parseFloat((price - prevClose).toFixed(2));
+        const changePct = prevClose > 0 ? parseFloat(((change / prevClose) * 100).toFixed(2)) : 0;
+        return {
+          code: cleanCode,
+          name: meta.shortName || meta.symbol || cleanCode,
+          price,
+          change,
+          changePct,
+          type: cleanCode.startsWith('00') ? 'ETF' : '股票'
+        };
       }
     } catch (e) {
-      // Continue to next suffix
+      // Continue trying next suffix
     }
   }
   return null;
 };
 
+/**
+ * 2. Batch Yahoo Finance Quotes Fetch (Intraday Real-Time)
+ */
+export const fetchYahooQuotesBatch = async (symbols: string[]): Promise<Record<string, StockQuote>> => {
+  const result: Record<string, StockQuote> = {};
+  if (!symbols || symbols.length === 0) return result;
+
+  const unique = Array.from(new Set(symbols.map(s => s.trim().toUpperCase())));
+  const promises = unique.map(async (sym) => {
+    const q = await fetchSingleYahooQuote(sym);
+    if (q) result[sym] = q;
+  });
+
+  await Promise.all(promises);
+  return result;
+};
+
+/**
+ * 3. TWSE Real-Time MIS API Fetch (證交所官方盤中即時行情)
+ */
+export const fetchTwseMisQuotesBatch = async (symbols: string[]): Promise<Record<string, StockQuote>> => {
+  const result: Record<string, StockQuote> = {};
+  if (!symbols || symbols.length === 0) return result;
+
+  const unique = Array.from(new Set(symbols.map(s => s.trim().toUpperCase())));
+  const channels = unique.map(sym => {
+    return (sym.startsWith('6') || sym.startsWith('8') || sym.startsWith('3')) ? `otc_${sym}.two` : `tse_${sym}.tw`;
+  }).join('|');
+
+  const targetUrl = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${channels}&_=${Date.now()}`;
+
+  try {
+    const res = await fetchWithProxy(targetUrl);
+    const data = await res.json();
+    const msgArray = data?.msgArray;
+
+    if (Array.isArray(msgArray)) {
+      msgArray.forEach((stk: any) => {
+        const code = (stk.c || '').trim().toUpperCase();
+        const name = (stk.n || code).trim();
+        // z: latest trade price, y: yesterday close, a: lowest ask, b: highest bid
+        const price = cleanNum(stk.z) || cleanNum(stk.a?.split('_')[0]) || cleanNum(stk.b?.split('_')[0]) || cleanNum(stk.y);
+        const prevClose = cleanNum(stk.y) || price;
+
+        if (code && price > 0) {
+          const change = parseFloat((price - prevClose).toFixed(2));
+          const changePct = prevClose > 0 ? parseFloat(((change / prevClose) * 100).toFixed(2)) : 0;
+
+          result[code] = {
+            code,
+            name,
+            price,
+            change,
+            changePct,
+            type: code.startsWith('00') ? 'ETF' : '股票'
+          };
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('TWSE MIS fetch notice:', e);
+  }
+
+  return result;
+};
+
+/**
+ * 4. TWSE / TPEx Official OpenAPI Fetch (日盤/收盤後官方資料庫)
+ */
 export const fetchTwseOpenApiQuotes = async (): Promise<Record<string, StockQuote> | null> => {
   const result: Record<string, StockQuote> = {};
 
@@ -62,36 +164,34 @@ export const fetchTwseOpenApiQuotes = async (): Promise<Record<string, StockQuot
 
   for (const url of twseUrls) {
     try {
-      const twseRes = await fetch(url);
-      if (twseRes.ok) {
-        const data = await twseRes.json();
-        if (Array.isArray(data) && data.length > 0) {
-          data.forEach((stk: any) => {
-            if (stk.Code && stk.ClosingPrice) {
-              const closeP = cleanNum(stk.ClosingPrice);
-              if (closeP > 0) {
-                const changeVal = cleanNum(stk.Change);
-                const codeUpper = stk.Code.trim().toUpperCase();
-                result[codeUpper] = {
-                  code: codeUpper,
-                  name: (stk.Name || codeUpper).trim(),
-                  price: closeP,
-                  change: changeVal,
-                  changePct: parseFloat(((changeVal / closeP) * 100).toFixed(2)),
-                  type: codeUpper.startsWith('00') ? 'ETF' : '股票'
-                };
-              }
+      const twseRes = await fetchWithProxy(url);
+      const data = await twseRes.json();
+      if (Array.isArray(data) && data.length > 0) {
+        data.forEach((stk: any) => {
+          if (stk.Code && stk.ClosingPrice) {
+            const closeP = cleanNum(stk.ClosingPrice);
+            if (closeP > 0) {
+              const changeVal = cleanNum(stk.Change);
+              const codeUpper = stk.Code.trim().toUpperCase();
+              result[codeUpper] = {
+                code: codeUpper,
+                name: (stk.Name || codeUpper).trim(),
+                price: closeP,
+                change: changeVal,
+                changePct: parseFloat(((changeVal / closeP) * 100).toFixed(2)),
+                type: codeUpper.startsWith('00') ? 'ETF' : '股票'
+              };
             }
-          });
-          break; // Stop trying fallback urls if success
-        }
+          }
+        });
+        break;
       }
     } catch (e) {
       console.warn(`TWSE quote fetch from ${url} notice:`, e);
     }
   }
 
-  // 2. Fetch TPEx OTC Quotes (櫃買中心上櫃股票與 ETF)
+  // 2. Fetch TPEx OTC Quotes (櫃買中心)
   const tpexUrls = [
     '/api/tpex/openapi/v1/tpex_mainboard_quotes',
     'https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes'
@@ -99,29 +199,27 @@ export const fetchTwseOpenApiQuotes = async (): Promise<Record<string, StockQuot
 
   for (const url of tpexUrls) {
     try {
-      const tpexRes = await fetch(url);
-      if (tpexRes.ok) {
-        const data = await tpexRes.json();
-        if (Array.isArray(data) && data.length > 0) {
-          data.forEach((stk: any) => {
-            const code = (stk.SecuritiesCompanyCode || stk.Code || stk.symbol || '').trim().toUpperCase();
-            const name = (stk.CompanyName || stk.Name || stk.name || code).trim();
-            const closeP = cleanNum(stk.Close || stk.ClosingPrice || stk.price);
+      const tpexRes = await fetchWithProxy(url);
+      const data = await tpexRes.json();
+      if (Array.isArray(data) && data.length > 0) {
+        data.forEach((stk: any) => {
+          const code = (stk.SecuritiesCompanyCode || stk.Code || stk.symbol || '').trim().toUpperCase();
+          const name = (stk.CompanyName || stk.Name || stk.name || code).trim();
+          const closeP = cleanNum(stk.Close || stk.ClosingPrice || stk.price);
 
-            if (code && closeP > 0) {
-              const changeVal = cleanNum(stk.Change || stk.change);
-              result[code] = {
-                code,
-                name,
-                price: closeP,
-                change: changeVal,
-                changePct: parseFloat(((changeVal / closeP) * 100).toFixed(2)),
-                type: code.startsWith('00') ? 'ETF' : '股票'
-              };
-            }
-          });
-          break;
-        }
+          if (code && closeP > 0) {
+            const changeVal = cleanNum(stk.Change || stk.change);
+            result[code] = {
+              code,
+              name,
+              price: closeP,
+              change: changeVal,
+              changePct: parseFloat(((changeVal / closeP) * 100).toFixed(2)),
+              type: code.startsWith('00') ? 'ETF' : '股票'
+            };
+          }
+        });
+        break;
       }
     } catch (e) {
       console.warn(`TPEx quote fetch from ${url} notice:`, e);
@@ -130,4 +228,53 @@ export const fetchTwseOpenApiQuotes = async (): Promise<Record<string, StockQuot
 
   return Object.keys(result).length > 0 ? result : null;
 };
+
+/**
+ * Main Quote Provider Dispatcher
+ */
+export const fetchQuotesByProvider = async (
+  symbols: string[],
+  provider: ApiProvider
+): Promise<{ quotes: Record<string, StockQuote>; sourceName: string }> => {
+  let quotes: Record<string, StockQuote> = {};
+  let sourceName = 'Yahoo 股市即時 API';
+
+  if (provider === 'yahoo') {
+    sourceName = 'Yahoo 股市即時 API';
+    quotes = await fetchYahooQuotesBatch(symbols);
+  } else if (provider === 'twse_mis') {
+    sourceName = '證交所 MIS 即時 API';
+    quotes = await fetchTwseMisQuotesBatch(symbols);
+    // Fallback for symbols missing in MIS
+    const missing = symbols.filter(s => !quotes[s.toUpperCase()]);
+    if (missing.length > 0) {
+      const yahooBackup = await fetchYahooQuotesBatch(missing);
+      quotes = { ...quotes, ...yahooBackup };
+    }
+  } else if (provider === 'twse_openapi') {
+    sourceName = '證交所/櫃買 OpenAPI (每日日盤收盤檔)';
+    const openApiQuotes = await fetchTwseOpenApiQuotes();
+    if (openApiQuotes) {
+      symbols.forEach(s => {
+        const upper = s.toUpperCase();
+        if (openApiQuotes[upper]) quotes[upper] = openApiQuotes[upper];
+      });
+    }
+  } else {
+    // 'auto'
+    sourceName = '自動智選 (Yahoo/MIS 即時行情)';
+    quotes = await fetchYahooQuotesBatch(symbols);
+    if (Object.keys(quotes).length < symbols.length) {
+      const misQuotes = await fetchTwseMisQuotesBatch(symbols);
+      quotes = { ...misQuotes, ...quotes };
+    }
+    if (Object.keys(quotes).length === 0) {
+      const openApiQuotes = await fetchTwseOpenApiQuotes();
+      if (openApiQuotes) quotes = openApiQuotes;
+    }
+  }
+
+  return { quotes, sourceName };
+};
+
 

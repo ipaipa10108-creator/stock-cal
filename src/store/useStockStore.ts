@@ -8,10 +8,11 @@ import {
   AssetType,
   HoldingFormState,
   CalcFormState,
-  ComputedHolding
+  ComputedHolding,
+  ApiProvider
 } from '../types/stock';
 import { calcTradeDetails } from '../utils/stockMath';
-import { checkTradingHours, fetchTwseOpenApiQuotes, fetchSingleYahooQuote } from '../services/twseApi';
+import { checkTradingHours, fetchQuotesByProvider, fetchSingleYahooQuote } from '../services/twseApi';
 import { initialStockDictionary } from '../db/stockDictionary';
 
 interface StockStore {
@@ -22,6 +23,9 @@ interface StockStore {
   themeMode: 'dark' | 'light';
   setThemeMode: (mode: 'dark' | 'light') => void;
   toggleThemeMode: () => void;
+
+  apiProvider: ApiProvider;
+  setApiProvider: (provider: ApiProvider) => void;
 
   toastMessage: string | null;
   setToastMessage: (msg: string | null) => void;
@@ -70,7 +74,8 @@ interface StockStore {
   isRefreshing: boolean;
   isMarketOpen: boolean;
   checkAndUpdateMarketHours: () => void;
-  refreshPrices: () => Promise<void>;
+  refreshPrices: (isManual?: boolean) => Promise<void>;
+
 
   // Filters & Sorting
   holdingTradeTypeFilter: string;
@@ -130,6 +135,13 @@ export const useStockStore = create<StockStore>((set, get) => ({
     get().saveToStorage();
   },
 
+  apiProvider: 'yahoo',
+  setApiProvider: (provider) => {
+    set({ apiProvider: provider });
+    get().saveToStorage();
+    get().refreshPrices(true);
+  },
+
   toastMessage: null,
   setToastMessage: (msg) => set({ toastMessage: msg }),
 
@@ -182,8 +194,8 @@ export const useStockStore = create<StockStore>((set, get) => ({
   historyData: {},
   fullStockMap: initialStockDictionary,
   presetStockList: [
-    { code: '1101', name: '台泥', price: 23.85, change: -0.5, changePct: -2.05, type: '股票' },
-    { code: '6116', name: '彩晶', price: 14.75, change: -0.2, changePct: -1.34, type: '股票' },
+    { code: '1101', name: '台泥', price: 23.80, change: -0.2, changePct: -0.83, type: '股票' },
+    { code: '6116', name: '彩晶', price: 14.73, change: -0.2, changePct: -1.34, type: '股票' },
     { code: '2330', name: '台積電', price: 980.0, change: 15.0, changePct: 1.55, type: '股票' },
     { code: '2317', name: '鴻海', price: 205.0, change: 3.5, changePct: 1.74, type: '股票' },
     { code: '2454', name: '聯發科', price: 1240.0, change: -10.0, changePct: -0.80, type: '股票' },
@@ -209,7 +221,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
   toggleLiveSim: () => {
     const next = !get().isLiveSimulating;
     set({ isLiveSimulating: next });
-    if (next) get().refreshPrices();
+    if (next) get().refreshPrices(false);
   },
   isRefreshing: false,
   isMarketOpen: false,
@@ -218,48 +230,37 @@ export const useStockStore = create<StockStore>((set, get) => ({
     set({ isMarketOpen: checkTradingHours() });
   },
 
-  refreshPrices: async () => {
+  refreshPrices: async (isManual = false) => {
     get().checkAndUpdateMarketHours();
     set({ isRefreshing: true });
     
-    let quotesMap = await fetchTwseOpenApiQuotes();
-    if (!quotesMap) quotesMap = {};
-
-    // Check holdings to see if any holding symbols need a single quote fetch
-    const currentHoldings = get().holdingsData;
-    const missingSymbols = new Set<string>();
-    Object.values(currentHoldings).forEach(list => {
-      list.forEach(h => {
-        if (!quotesMap![h.symbol]) missingSymbols.add(h.symbol);
-      });
+    // Collect all symbol codes from holdings & preset list
+    const symbolSet = new Set<string>();
+    get().presetStockList.forEach(s => symbolSet.add(s.code));
+    Object.values(get().holdingsData).forEach(list => {
+      list.forEach(h => symbolSet.add(h.symbol));
     });
 
-    for (const sym of Array.from(missingSymbols)) {
-      const q = await fetchSingleYahooQuote(sym);
-      if (q) quotesMap[sym] = q;
-    }
+    const symbols = Array.from(symbolSet);
+    const { quotes: quotesMap, sourceName } = await fetchQuotesByProvider(symbols, get().apiProvider);
 
     const map = get().fullStockMap;
     const updatedMap = { ...map, ...quotesMap };
 
-    // Update preset list
-    const updatedPreset = get().presetStockList.map(stk => quotesMap![stk.code] ? { ...quotesMap![stk.code] } : stk);
+    // Update preset list with exact real-time prices
+    const updatedPreset = get().presetStockList.map(stk => quotesMap[stk.code.toUpperCase()] ? { ...quotesMap[stk.code.toUpperCase()] } : stk);
     
-    // Update holding prices & flash animations
+    // Update holding prices with exact real-time prices
     const holdings = { ...get().holdingsData };
     let hasUpdatedAny = false;
 
     Object.keys(holdings).forEach(accId => {
       holdings[accId] = holdings[accId].map(item => {
+        const key = item.symbol.trim().toUpperCase();
         let freshP = item.currentPrice;
         
-        if (quotesMap![item.symbol]) {
-          freshP = quotesMap![item.symbol].price;
-        } else if (get().isLiveSimulating) {
-          // Simulated minor fluctuation when offline / after market
-          const pct = (Math.random() - 0.48) * 0.008; // -0.4% ~ +0.4%
-          const delta = +(item.currentPrice * pct).toFixed(2);
-          freshP = +(item.currentPrice + delta).toFixed(2);
+        if (quotesMap[key] && quotesMap[key].price > 0) {
+          freshP = quotesMap[key].price;
         }
 
         if (freshP > 0 && freshP !== item.currentPrice) {
@@ -282,8 +283,10 @@ export const useStockStore = create<StockStore>((set, get) => ({
       isRefreshing: false
     });
 
-    get().setToastMessage(hasUpdatedAny ? '已手動同步最新股票連動價格！' : '即時價位已為最新數據');
-    setTimeout(() => { get().setToastMessage(null); }, 2500);
+    if (isManual) {
+      get().setToastMessage(`已從 [${sourceName}] 同步最新即時報價！`);
+      setTimeout(() => { get().setToastMessage(null); }, 3000);
+    }
 
     setTimeout(() => {
       const resetHoldings = { ...get().holdingsData };
@@ -293,6 +296,8 @@ export const useStockStore = create<StockStore>((set, get) => ({
       set({ holdingsData: resetHoldings });
     }, 800);
   },
+
+
 
   holdingTradeTypeFilter: '現股交易',
   setHoldingTradeTypeFilter: (filter) => set({ holdingTradeTypeFilter: filter }),
@@ -643,12 +648,14 @@ export const useStockStore = create<StockStore>((set, get) => ({
       const discount = parsed.discount !== undefined ? parsed.discount : get().globalDiscount;
       const limit = parsed.limit !== undefined ? parsed.limit : get().accountLimitInput;
       const theme = parsed.themeMode || 'dark';
+      const provider = parsed.apiProvider || 'yahoo';
       set({
         holdingsData: holdings,
         historyData: history,
         globalDiscount: discount,
         accountLimitInput: limit,
-        themeMode: theme
+        themeMode: theme,
+        apiProvider: provider
       });
       get().saveToStorage();
       return true;
@@ -667,16 +674,18 @@ export const useStockStore = create<StockStore>((set, get) => ({
           historyData: parsed.history || {},
           globalDiscount: parsed.discount !== undefined ? parsed.discount : 0.38,
           accountLimitInput: parsed.limit || null,
-          themeMode: parsed.themeMode || 'dark'
+          themeMode: parsed.themeMode || 'dark',
+          apiProvider: parsed.apiProvider || 'yahoo'
         });
         return;
       } catch (e) {
         // Fallback to default mock
       }
     }
-    // Default initial mock matching screenshot
+    // Default initial mock matching user's real-time screenshot
     set({
       themeMode: 'dark',
+      apiProvider: 'yahoo',
       holdingsData: {
         'acc-1': [
           {
@@ -684,7 +693,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
             symbol: '1101',
             name: '台泥',
             buyPrice: 24.25,
-            currentPrice: 23.85,
+            currentPrice: 23.80,
             shares: 5000,
             discount: 0.38,
             minFee: 20,
@@ -697,7 +706,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
             symbol: '6116',
             name: '彩晶',
             buyPrice: 19.50,
-            currentPrice: 14.75,
+            currentPrice: 14.73,
             shares: 1000,
             discount: 0.38,
             minFee: 20,
@@ -744,7 +753,9 @@ export const useStockStore = create<StockStore>((set, get) => ({
       history: get().historyData,
       discount: get().globalDiscount,
       limit: get().accountLimitInput,
-      themeMode: get().themeMode
+      themeMode: get().themeMode,
+      apiProvider: get().apiProvider
     }));
   }
+
 }));
