@@ -49,12 +49,16 @@ const fetchWithProxy = async (targetUrl: string): Promise<Response> => {
   throw new Error(`Failed to fetch from ${targetUrl}`);
 };
 
+import { initialStockDictionary } from '../db/stockDictionary';
+
 /**
  * 1. Single Yahoo Quote Fetch (Intraday Real-Time)
  */
 export const fetchSingleYahooQuote = async (code: string): Promise<StockQuote | null> => {
   const cleanCode = code.trim().toUpperCase();
   if (!cleanCode) return null;
+
+  const dictName = initialStockDictionary[cleanCode]?.name;
 
   const suffixes = ['.TW', '.TWO'];
   for (const suf of suffixes) {
@@ -68,9 +72,21 @@ export const fetchSingleYahooQuote = async (code: string): Promise<StockQuote | 
         const prevClose = cleanNum(meta.chartPreviousClose || meta.previousClose || price);
         const change = parseFloat((price - prevClose).toFixed(2));
         const changePct = prevClose > 0 ? parseFloat(((change / prevClose) * 100).toFixed(2)) : 0;
+
+        let name = dictName;
+        if (!name) {
+          const rawName = meta.shortName || meta.symbol || cleanCode;
+          // If rawName is purely English/ASCII and we have a dict entry, prefer Chinese name
+          if (/^[A-Za-z0-9\s.,&-]+$/.test(rawName) && dictName) {
+            name = dictName;
+          } else {
+            name = rawName;
+          }
+        }
+
         return {
           code: cleanCode,
-          name: meta.shortName || meta.symbol || cleanCode,
+          name,
           price,
           change,
           changePct,

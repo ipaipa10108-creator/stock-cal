@@ -109,9 +109,6 @@ export const AddHoldingModal: React.FC = () => {
                 setHoldingForm({ symbolSearch: e.target.value });
                 searchAddStock(e.target.value);
               }}
-              onBlur={() => {
-                setTimeout(handleApplyLivePrice, 200);
-              }}
               placeholder="如: 2330, 台積電, 鴻海, 00878"
               className={`flex-1 p-2 text-sm font-bold rounded-lg border focus:outline-none focus:border-blue-500 ${
                 isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'

@@ -120,6 +120,9 @@ interface StockStore {
 
 const todayStr = new Date().toISOString().split('T')[0];
 
+let addSearchTicket = 0;
+let calcSearchTicket = 0;
+
 export const useStockStore = create<StockStore>((set, get) => ({
   activeTab: 'holdings',
   setActiveTab: (tab) => set({ activeTab: tab }),
@@ -252,7 +255,6 @@ export const useStockStore = create<StockStore>((set, get) => ({
     
     // Update holding prices with exact real-time prices
     const holdings = { ...get().holdingsData };
-    let hasUpdatedAny = false;
 
     Object.keys(holdings).forEach(accId => {
       holdings[accId] = holdings[accId].map(item => {
@@ -264,7 +266,6 @@ export const useStockStore = create<StockStore>((set, get) => ({
         }
 
         if (freshP > 0 && freshP !== item.currentPrice) {
-          hasUpdatedAny = true;
           const isUp = freshP >= item.currentPrice;
           return {
             ...item,
@@ -329,6 +330,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
   setHoldingForm: (form) => set((state) => ({ holdingForm: { ...state.holdingForm, ...form } })),
   addSearchResults: [],
   searchAddStock: async (query) => {
+    const currentTicket = ++addSearchTicket;
     const q = query.trim().toUpperCase();
     if (!q) {
       set({ addSearchResults: [] });
@@ -353,43 +355,51 @@ export const useStockStore = create<StockStore>((set, get) => ({
     }
 
     matches.sort((a, b) => b.score - a.score || a.quote.code.localeCompare(b.quote.code));
-    let results = matches.map(m => m.quote).slice(0, 20);
+    let results = matches.map(m => ({ ...m.quote })).slice(0, 15);
 
-    // Fetch fresh live price for top result or direct code query
+    if (currentTicket === addSearchTicket) {
+      set({ addSearchResults: results });
+    }
+
+    // Fetch fresh live price for top result
     if (results.length > 0) {
       const topCode = results[0].code;
       const liveQuote = await fetchSingleYahooQuote(topCode);
+      if (currentTicket !== addSearchTicket) return;
+
       if (liveQuote && liveQuote.price > 0) {
-        results[0] = liveQuote;
-        set({ fullStockMap: { ...get().fullStockMap, [topCode]: liveQuote } });
+        const chineseName = map[topCode]?.name || results[0].name || liveQuote.name;
+        results[0] = { ...liveQuote, name: chineseName };
+        set({
+          addSearchResults: results,
+          fullStockMap: { ...get().fullStockMap, [topCode]: results[0] }
+        });
       }
     } else if (q.length >= 2) {
       const yahooQuote = await fetchSingleYahooQuote(q);
+      if (currentTicket !== addSearchTicket) return;
+
       if (yahooQuote && yahooQuote.price > 0) {
-        results.push(yahooQuote);
-        set({ fullStockMap: { ...get().fullStockMap, [yahooQuote.code]: yahooQuote } });
-      } else {
-        results.unshift({
-          code: q,
-          name: q,
-          price: 0,
-          change: 0,
-          changePct: 0,
-          type: q.startsWith('00') ? 'ETF' : '股票'
+        const chineseName = map[yahooQuote.code]?.name || yahooQuote.name;
+        const finalQuote = { ...yahooQuote, name: chineseName };
+        results.push(finalQuote);
+        set({
+          addSearchResults: results,
+          fullStockMap: { ...get().fullStockMap, [finalQuote.code]: finalQuote }
         });
       }
     }
-
-    set({ addSearchResults: results });
   },
   selectAddStock: async (stk) => {
     const f = get().holdingForm;
+    const chineseName = get().fullStockMap[stk.code]?.name || stk.name;
+
     set({
       holdingForm: {
         ...f,
         symbol: stk.code,
-        name: stk.name,
-        symbolSearch: `${stk.code} - ${stk.name}`,
+        name: chineseName,
+        symbolSearch: `${stk.code} - ${chineseName}`,
         currentPrice: stk.price > 0 ? stk.price : f.currentPrice,
         buyPrice: (!f.buyPrice || f.buyPrice === 0) ? (stk.price > 0 ? stk.price : 0) : f.buyPrice,
         assetType: stk.type || (stk.code.startsWith('00') ? 'ETF' : '股票')
@@ -397,17 +407,20 @@ export const useStockStore = create<StockStore>((set, get) => ({
       addSearchResults: []
     });
 
-    // Fetch live price asynchronously to guarantee exact market price
     const live = await fetchSingleYahooQuote(stk.code);
     if (live && live.price > 0) {
       const curF = get().holdingForm;
+      const updatedQuote = { ...live, name: chineseName };
       set({
         holdingForm: {
           ...curF,
+          symbol: stk.code,
+          name: chineseName,
+          symbolSearch: `${stk.code} - ${chineseName}`,
           currentPrice: live.price,
           buyPrice: (!curF.buyPrice || curF.buyPrice === 0) ? live.price : curF.buyPrice
         },
-        fullStockMap: { ...get().fullStockMap, [stk.code]: live }
+        fullStockMap: { ...get().fullStockMap, [stk.code]: updatedQuote }
       });
     }
   },
@@ -428,6 +441,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
   setCalcQuery: (query) => set({ calcQuery: query }),
   calcSearchResults: [],
   searchCalcStock: async (query) => {
+    const currentTicket = ++calcSearchTicket;
     const q = query.trim().toUpperCase();
     if (!q) {
       set({ calcSearchResults: [] });
@@ -452,24 +466,39 @@ export const useStockStore = create<StockStore>((set, get) => ({
     }
 
     matches.sort((a, b) => b.score - a.score || a.quote.code.localeCompare(b.quote.code));
-    let results = matches.map(m => m.quote).slice(0, 20);
+    let results = matches.map(m => ({ ...m.quote })).slice(0, 15);
+
+    if (currentTicket === calcSearchTicket) {
+      set({ calcSearchResults: results });
+    }
 
     if (results.length > 0) {
       const topCode = results[0].code;
       const liveQuote = await fetchSingleYahooQuote(topCode);
+      if (currentTicket !== calcSearchTicket) return;
+
       if (liveQuote && liveQuote.price > 0) {
-        results[0] = liveQuote;
-        set({ fullStockMap: { ...get().fullStockMap, [topCode]: liveQuote } });
+        const chineseName = map[topCode]?.name || results[0].name || liveQuote.name;
+        results[0] = { ...liveQuote, name: chineseName };
+        set({
+          calcSearchResults: results,
+          fullStockMap: { ...get().fullStockMap, [topCode]: results[0] }
+        });
       }
     } else if (q.length >= 2) {
       const yahooQuote = await fetchSingleYahooQuote(q);
+      if (currentTicket !== calcSearchTicket) return;
+
       if (yahooQuote && yahooQuote.price > 0) {
-        results.push(yahooQuote);
-        set({ fullStockMap: { ...get().fullStockMap, [yahooQuote.code]: yahooQuote } });
+        const chineseName = map[yahooQuote.code]?.name || yahooQuote.name;
+        const finalQuote = { ...yahooQuote, name: chineseName };
+        results.push(finalQuote);
+        set({
+          calcSearchResults: results,
+          fullStockMap: { ...get().fullStockMap, [finalQuote.code]: finalQuote }
+        });
       }
     }
-
-    set({ calcSearchResults: results });
   },
   selectCalcStock: async (stk) => {
     set((state) => ({
