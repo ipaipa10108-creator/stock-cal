@@ -18,11 +18,14 @@ const cleanNum = (val: any): number => {
   return isNaN(num) ? 0 : num;
 };
 
-// CORS Proxy helper to ensure API calls work on GitHub Pages & local dev
+// CORS Proxy helper with cache buster to guarantee fresh live quotes
 const fetchWithProxy = async (targetUrl: string): Promise<Response> => {
+  const sep = targetUrl.includes('?') ? '&' : '?';
+  const freshUrl = `${targetUrl}${sep}_cb=${Date.now()}`;
+
   // 1. Direct fetch
   try {
-    const res = await fetch(targetUrl);
+    const res = await fetch(freshUrl, { cache: 'no-store' });
     if (res.ok) return res;
   } catch (e) {
     // CORS or network error, fallback to proxy
@@ -30,17 +33,26 @@ const fetchWithProxy = async (targetUrl: string): Promise<Response> => {
 
   // 2. corsproxy.io
   try {
-    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-    const res = await fetch(proxyUrl);
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(freshUrl)}`;
+    const res = await fetch(proxyUrl, { cache: 'no-store' });
     if (res.ok) return res;
   } catch (e) {
     // Continue to next proxy
   }
 
-  // 3. allorigins.win
+  // 3. allorigins.win with timestamp parameter
   try {
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-    const res = await fetch(proxyUrl);
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(freshUrl)}&_ts=${Date.now()}`;
+    const res = await fetch(proxyUrl, { cache: 'no-store' });
+    if (res.ok) return res;
+  } catch (e) {
+    // Continue
+  }
+
+  // 4. codetabs proxy
+  try {
+    const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(freshUrl)}`;
+    const res = await fetch(proxyUrl, { cache: 'no-store' });
     if (res.ok) return res;
   } catch (e) {
     // Continue
