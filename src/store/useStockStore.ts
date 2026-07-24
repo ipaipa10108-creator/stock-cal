@@ -90,7 +90,7 @@ interface StockStore {
   setHoldingForm: (form: Partial<HoldingFormState>) => void;
   addSearchResults: StockQuote[];
   searchAddStock: (query: string) => void;
-  selectAddStock: (stk: StockQuote) => void;
+  selectAddStock: (stk: StockQuote) => Promise<void>;
 
   calcForm: CalcFormState;
   setCalcForm: (form: Partial<CalcFormState>) => void;
@@ -98,7 +98,7 @@ interface StockStore {
   setCalcQuery: (query: string) => void;
   calcSearchResults: StockQuote[];
   searchCalcStock: (query: string) => void;
-  selectCalcStock: (stk: StockQuote) => void;
+  selectCalcStock: (stk: StockQuote) => Promise<void>;
 
   sellTarget: HoldingItem | null;
   sellForm: { price: number; shares: number; date: string };
@@ -108,7 +108,7 @@ interface StockStore {
   // Holding CRUD
   openAddModal: () => void;
   openEditModal: (item: HoldingItem) => void;
-  saveHolding: () => void;
+  saveHolding: () => Promise<void>;
   deleteHolding: (id: string) => void;
   resetCurrentAccountData: () => void;
   importDataFromJson: (parsed: any) => boolean;
@@ -355,9 +355,17 @@ export const useStockStore = create<StockStore>((set, get) => ({
     matches.sort((a, b) => b.score - a.score || a.quote.code.localeCompare(b.quote.code));
     let results = matches.map(m => m.quote).slice(0, 20);
 
-    if (results.length === 0 && q.length >= 2) {
+    // Fetch fresh live price for top result or direct code query
+    if (results.length > 0) {
+      const topCode = results[0].code;
+      const liveQuote = await fetchSingleYahooQuote(topCode);
+      if (liveQuote && liveQuote.price > 0) {
+        results[0] = liveQuote;
+        set({ fullStockMap: { ...get().fullStockMap, [topCode]: liveQuote } });
+      }
+    } else if (q.length >= 2) {
       const yahooQuote = await fetchSingleYahooQuote(q);
-      if (yahooQuote) {
+      if (yahooQuote && yahooQuote.price > 0) {
         results.push(yahooQuote);
         set({ fullStockMap: { ...get().fullStockMap, [yahooQuote.code]: yahooQuote } });
       } else {
@@ -374,7 +382,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
 
     set({ addSearchResults: results });
   },
-  selectAddStock: (stk) => {
+  selectAddStock: async (stk) => {
     const f = get().holdingForm;
     set({
       holdingForm: {
@@ -388,6 +396,20 @@ export const useStockStore = create<StockStore>((set, get) => ({
       },
       addSearchResults: []
     });
+
+    // Fetch live price asynchronously to guarantee exact market price
+    const live = await fetchSingleYahooQuote(stk.code);
+    if (live && live.price > 0) {
+      const curF = get().holdingForm;
+      set({
+        holdingForm: {
+          ...curF,
+          currentPrice: live.price,
+          buyPrice: (!curF.buyPrice || curF.buyPrice === 0) ? live.price : curF.buyPrice
+        },
+        fullStockMap: { ...get().fullStockMap, [stk.code]: live }
+      });
+    }
   },
 
   // Calculator Form
@@ -432,9 +454,16 @@ export const useStockStore = create<StockStore>((set, get) => ({
     matches.sort((a, b) => b.score - a.score || a.quote.code.localeCompare(b.quote.code));
     let results = matches.map(m => m.quote).slice(0, 20);
 
-    if (results.length === 0 && q.length >= 2) {
+    if (results.length > 0) {
+      const topCode = results[0].code;
+      const liveQuote = await fetchSingleYahooQuote(topCode);
+      if (liveQuote && liveQuote.price > 0) {
+        results[0] = liveQuote;
+        set({ fullStockMap: { ...get().fullStockMap, [topCode]: liveQuote } });
+      }
+    } else if (q.length >= 2) {
       const yahooQuote = await fetchSingleYahooQuote(q);
-      if (yahooQuote) {
+      if (yahooQuote && yahooQuote.price > 0) {
         results.push(yahooQuote);
         set({ fullStockMap: { ...get().fullStockMap, [yahooQuote.code]: yahooQuote } });
       }
@@ -442,7 +471,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
 
     set({ calcSearchResults: results });
   },
-  selectCalcStock: (stk) => {
+  selectCalcStock: async (stk) => {
     set((state) => ({
       calcQuery: `${stk.code} - ${stk.name}`,
       calcForm: {
@@ -453,6 +482,18 @@ export const useStockStore = create<StockStore>((set, get) => ({
       },
       calcSearchResults: []
     }));
+
+    const live = await fetchSingleYahooQuote(stk.code);
+    if (live && live.price > 0) {
+      set((state) => ({
+        calcForm: {
+          ...state.calcForm,
+          buyPrice: live.price,
+          sellPrice: +(live.price * 1.03).toFixed(2)
+        },
+        fullStockMap: { ...get().fullStockMap, [stk.code]: live }
+      }));
+    }
   },
 
   sellTarget: null,
@@ -553,9 +594,11 @@ export const useStockStore = create<StockStore>((set, get) => ({
     });
   },
 
-  saveHolding: () => {
+  saveHolding: async () => {
     const f = get().holdingForm;
-    const inputRaw = (f.symbolSearch || '').trim().toUpperCase();
+    const inputRaw = (f.symbolSearch || f.symbol || '').trim().toUpperCase();
+    if (!inputRaw) return;
+
     let symbol = f.symbol;
     let name = f.name;
     let curPrice = f.currentPrice;
@@ -563,28 +606,34 @@ export const useStockStore = create<StockStore>((set, get) => ({
 
     const map = get().fullStockMap;
 
-    // Resolve stock symbol & name from search or input if not directly selected
-    if (!symbol || !inputRaw.includes(symbol.toUpperCase())) {
-      if (inputRaw) {
-        const found = Object.values(map).find(s => 
-          s.code.toUpperCase() === inputRaw || 
-          s.name.toUpperCase() === inputRaw ||
-          s.code.toUpperCase().includes(inputRaw) ||
-          s.name.toUpperCase().includes(inputRaw)
-        );
+    let found = Object.values(map).find(s => 
+      s.code.toUpperCase() === inputRaw || 
+      s.name.toUpperCase() === inputRaw ||
+      inputRaw.startsWith(s.code.toUpperCase()) ||
+      inputRaw.includes(s.name.toUpperCase())
+    );
 
-        if (found) {
-          symbol = found.code;
-          name = found.name;
-          if (!curPrice || curPrice === 0) curPrice = found.price;
-          if (!buyPrice || buyPrice === 0) buyPrice = found.price;
-        } else {
-          symbol = inputRaw;
-          name = inputRaw;
-        }
-      } else {
-        return;
-      }
+    if (found) {
+      symbol = found.code;
+      name = found.name;
+    } else {
+      symbol = inputRaw;
+      name = inputRaw;
+    }
+
+    // Always fetch live real-time price
+    const targetCode = symbol || inputRaw;
+    const liveQuote = await fetchSingleYahooQuote(targetCode);
+
+    if (liveQuote && liveQuote.price > 0) {
+      symbol = liveQuote.code;
+      name = liveQuote.name || name;
+      curPrice = liveQuote.price;
+      if (!buyPrice || buyPrice === 0) buyPrice = liveQuote.price;
+      set({ fullStockMap: { ...get().fullStockMap, [symbol]: liveQuote } });
+    } else if (found && found.price > 0) {
+      if (!curPrice || curPrice === 0) curPrice = found.price;
+      if (!buyPrice || buyPrice === 0) buyPrice = found.price;
     }
 
     if (!buyPrice && curPrice) buyPrice = curPrice;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useStockStore } from '../../store/useStockStore';
 import { calcTradeDetails, calcEtfPremiumDiscount, formatNum } from '../../utils/stockMath';
+import { fetchSingleYahooQuote } from '../../services/twseApi';
 
 export const AddHoldingModal: React.FC = () => {
   const {
@@ -44,11 +45,31 @@ export const AddHoldingModal: React.FC = () => {
     setShowTradeTypeModal(true);
   };
 
-  const handleApplyLivePrice = () => {
+  const handleApplyLivePrice = async () => {
     const raw = (holdingForm.symbolSearch || holdingForm.symbol).trim().toUpperCase();
     if (!raw) return;
-    const stk = fullStockMap[raw] || Object.values(fullStockMap).find(s => s.code.toUpperCase() === raw || s.name.toUpperCase() === raw || s.code.toUpperCase().includes(raw));
-    if (stk && stk.price > 0) {
+
+    let targetCode = raw;
+    const stk = fullStockMap[raw] || Object.values(fullStockMap).find(s => 
+      s.code.toUpperCase() === raw || 
+      s.name.toUpperCase() === raw || 
+      raw.includes(s.code.toUpperCase()) || 
+      raw.includes(s.name.toUpperCase())
+    );
+
+    if (stk) targetCode = stk.code;
+
+    const live = await fetchSingleYahooQuote(targetCode);
+    if (live && live.price > 0) {
+      setHoldingForm({
+        symbol: live.code,
+        name: live.name,
+        symbolSearch: `${live.code} - ${live.name}`,
+        currentPrice: live.price,
+        buyPrice: holdingForm.buyPrice > 0 ? holdingForm.buyPrice : live.price,
+        assetType: live.type || (live.code.startsWith('00') ? 'ETF' : '股票')
+      });
+    } else if (stk && stk.price > 0) {
       setHoldingForm({
         symbol: stk.code,
         name: stk.name,
@@ -59,6 +80,7 @@ export const AddHoldingModal: React.FC = () => {
       });
     }
   };
+
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
