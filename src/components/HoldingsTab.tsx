@@ -15,9 +15,11 @@ export const HoldingsTab: React.FC = () => {
     openAddModal,
     openEditModal,
     openSellModal,
-    deleteHolding
+    deleteHolding,
+    themeMode
   } = useStockStore();
 
+  const isLight = themeMode === 'light';
   const currentList = holdingsData[currentAccountId] || [];
 
   const computedHoldings: ComputedHolding[] = currentList.map((item) => {
@@ -70,7 +72,9 @@ export const HoldingsTab: React.FC = () => {
   return (
     <div className="space-y-3">
       {/* 分類與排序列 */}
-      <div className="flex items-center justify-between bg-slate-800 p-1.5 rounded-lg border border-slate-700">
+      <div className={`flex items-center justify-between p-1.5 rounded-lg border transition ${
+        isLight ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-700'
+      }`}>
         <div className="flex space-x-1">
           {['現股交易', '當沖交易', '信用交易'].map((type) => (
             <button
@@ -79,7 +83,7 @@ export const HoldingsTab: React.FC = () => {
               className={`px-3 py-1 rounded-md text-xs transition ${
                 holdingTradeTypeFilter === type
                   ? 'bg-blue-600 text-white font-bold shadow'
-                  : 'text-slate-400 hover:text-slate-200'
+                  : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-300 hover:text-white')
               }`}
             >
               {type}
@@ -90,7 +94,9 @@ export const HoldingsTab: React.FC = () => {
         {/* 排序按鈕 */}
         <button
           onClick={toggleSort}
-          className="text-xs text-slate-300 hover:text-white px-2 py-1 bg-slate-700 rounded flex items-center space-x-1"
+          className={`text-xs px-2 py-1 rounded flex items-center space-x-1 transition ${
+            isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+          }`}
         >
           <i className="fa-solid fa-arrow-down-short-wide text-xs"></i>
           <span>{sortModeLabel}</span>
@@ -99,12 +105,12 @@ export const HoldingsTab: React.FC = () => {
 
       {/* 庫存列表 */}
       {filtered.length === 0 ? (
-        <div className="text-center py-12 text-slate-500 space-y-3">
-          <i className="fa-solid fa-folder-open text-4xl text-slate-600"></i>
-          <p className="text-sm">目前此分類下無庫存股票</p>
+        <div className={`text-center py-12 space-y-3 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+          <i className="fa-solid fa-folder-open text-4xl text-slate-400"></i>
+          <p className="text-sm font-semibold">目前此分類下無庫存股票</p>
           <button
             onClick={openAddModal}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-lg shadow transition"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg shadow transition"
           >
             + 新增第一筆庫存
           </button>
@@ -114,9 +120,9 @@ export const HoldingsTab: React.FC = () => {
           {filtered.map((item) => (
             <div
               key={item.id}
-              className={`bg-slate-800 rounded-xl p-3 border border-slate-700/80 hover:border-slate-600 transition shadow-sm relative overflow-hidden ${
-                item.flashClass || ''
-              }`}
+              className={`rounded-xl p-3 border transition shadow-sm relative overflow-hidden ${
+                isLight ? 'bg-white border-slate-200 hover:border-slate-300' : 'bg-slate-800 border-slate-700/80 hover:border-slate-600'
+              } ${item.flashClass || ''}`}
             >
               {/* 標題列：代號/名稱與未實現損益 */}
               <div className="flex justify-between items-start mb-2">
@@ -127,34 +133,38 @@ export const HoldingsTab: React.FC = () => {
                       target="_blank"
                       rel="noopener noreferrer"
                       title="點擊開啟 Yahoo 股市即時行情與 K 線圖"
-                      className="text-base font-bold text-white hover:text-amber-300 hover:underline transition flex items-center space-x-1 group"
+                      className={`text-base font-extrabold hover:underline transition flex items-center space-x-1 group ${
+                        isLight ? 'text-slate-900 hover:text-amber-600' : 'text-white hover:text-amber-300'
+                      }`}
                     >
                       <span>{item.symbol} - {item.name}</span>
-                      <i className="fa-solid fa-arrow-up-right-from-square text-xs text-amber-400 opacity-70 group-hover:opacity-100"></i>
+                      <i className="fa-solid fa-arrow-up-right-from-square text-xs text-amber-500 opacity-80 group-hover:opacity-100"></i>
                     </a>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-amber-300 border border-slate-600">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold ${
+                      isLight ? 'bg-slate-100 text-amber-700 border-amber-300' : 'bg-slate-700 text-amber-300 border-slate-600'
+                    }`}>
                       {item.tradeType}
                     </span>
                   </div>
-                  <div className="text-xs text-slate-400 mt-1 flex items-center space-x-3">
-                    <span>買進 : <strong className="text-slate-200">${item.buyPrice}</strong></span>
-                    <span>股數 : <strong className="text-slate-200">{formatNum(item.shares)}</strong></span>
+                  <div className={`text-xs mt-1 flex items-center space-x-3 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                    <span>買進 : <strong className={isLight ? 'text-slate-900 font-bold' : 'text-slate-100 font-bold'}>${item.buyPrice}</strong></span>
+                    <span>股數 : <strong className={isLight ? 'text-slate-900 font-bold' : 'text-slate-100 font-bold'}>{formatNum(item.shares)}</strong></span>
                   </div>
-                  <div className="text-xs text-slate-400">
-                    現價 : <strong className={getPriceChangeColorClass(item.currentPrice, item.buyPrice)}>${item.currentPrice.toFixed(2)}</strong>
+                  <div className={`text-xs ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                    現價 : <strong className={`font-extrabold ${getPriceChangeColorClass(item.currentPrice, item.buyPrice)}`}>${item.currentPrice.toFixed(2)}</strong>
                   </div>
                 </div>
 
                 {/* 損益與報酬率 */}
                 <div className="text-right">
-                  <div className="text-xs text-slate-400">未實現損益 :</div>
-                  <div className={`text-base font-bold ${getPnlColorClass(item.unrealizedPnl)}`}>
+                  <div className={`text-xs ${isLight ? 'text-slate-500 font-medium' : 'text-slate-400'}`}>未實現損益 :</div>
+                  <div className={`text-base font-black ${getPnlColorClass(item.unrealizedPnl)}`}>
                     {item.unrealizedPnl >= 0 ? '+' : ''}{formatNum(item.unrealizedPnl)}
                   </div>
-                  <div className={`text-xs font-semibold ${getPnlColorClass(item.unrealizedPnl)}`}>
+                  <div className={`text-xs font-bold ${getPnlColorClass(item.unrealizedPnl)}`}>
                     {formatPct(item.unrealizedPnlPct)}
                   </div>
-                  <div className="text-[10px] text-slate-500 mt-1">{item.date}</div>
+                  <div className={`text-[10px] mt-1 ${isLight ? 'text-slate-400 font-medium' : 'text-slate-400'}`}>{item.date}</div>
                 </div>
               </div>
 
@@ -166,12 +176,14 @@ export const HoldingsTab: React.FC = () => {
                   <div
                     className={`mt-2 p-1.5 rounded-lg text-xs border flex items-center justify-between ${
                       pd.isPremium
-                        ? 'bg-rose-950/30 border-rose-800/40 text-rose-300'
-                        : 'bg-emerald-950/30 border-emerald-800/40 text-emerald-300'
+                        ? (isLight ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-rose-950/30 border-rose-800/40 text-rose-300')
+                        : (isLight ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-emerald-950/30 border-emerald-800/40 text-emerald-300')
                     }`}
                   >
                     <div className="flex items-center space-x-1.5">
-                      <span className="text-[10px] font-bold px-1 rounded bg-slate-900/60 border border-slate-700">
+                      <span className={`text-[10px] font-bold px-1 rounded border ${
+                        isLight ? 'bg-white border-slate-300' : 'bg-slate-900/60 border-slate-700'
+                      }`}>
                         ETF 折溢價
                       </span>
                       <span>
@@ -187,23 +199,29 @@ export const HoldingsTab: React.FC = () => {
               })()}
 
               {/* 快捷操作鈕 */}
-              <div className="flex justify-end space-x-2 mt-2 pt-2 border-t border-slate-700/40 text-xs">
+              <div className={`flex justify-end space-x-2 mt-2 pt-2 border-t text-xs ${
+                isLight ? 'border-slate-200' : 'border-slate-700/40'
+              }`}>
                 <button
                   onClick={() => openSellModal(item)}
-                  className="px-2.5 py-1 bg-amber-600/80 hover:bg-amber-600 text-white rounded flex items-center space-x-1"
+                  className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded flex items-center space-x-1 shadow-sm transition"
                 >
                   <i className="fa-solid fa-right-from-bracket"></i>
                   <span>平倉/賣出</span>
                 </button>
                 <button
                   onClick={() => openEditModal(item)}
-                  className="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded"
+                  className={`px-2 py-1 rounded transition ${
+                    isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+                  }`}
                 >
                   <i className="fa-solid fa-pen-to-square"></i>
                 </button>
                 <button
                   onClick={() => deleteHolding(item.id)}
-                  className="px-2 py-1 bg-slate-700 hover:bg-rose-900/50 text-rose-400 rounded"
+                  className={`px-2 py-1 rounded transition ${
+                    isLight ? 'bg-rose-50 hover:bg-rose-100 text-rose-600' : 'bg-slate-700 hover:bg-rose-900/50 text-rose-400'
+                  }`}
                 >
                   <i className="fa-solid fa-trash"></i>
                 </button>
@@ -215,3 +233,4 @@ export const HoldingsTab: React.FC = () => {
     </div>
   );
 };
+

@@ -19,7 +19,9 @@ export const App: React.FC = () => {
     loadFromStorage,
     checkAndUpdateMarketHours,
     refreshPrices,
-    isLiveSimulating
+    isLiveSimulating,
+    themeMode,
+    toastMessage
   } = useStockStore();
 
   useEffect(() => {
@@ -63,8 +65,20 @@ export const App: React.FC = () => {
     };
   }, []);
 
+  const isLight = themeMode === 'light';
+
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-slate-900 shadow-2xl flex flex-col relative border-x border-slate-800 text-slate-100 font-sans select-none">
+    <div className={`max-w-md mx-auto min-h-screen shadow-2xl flex flex-col relative border-x transition-colors duration-200 font-sans select-none ${
+      isLight ? 'bg-slate-100 text-slate-900 border-slate-200' : 'bg-slate-900 text-slate-100 border-slate-800'
+    }`}>
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow-xl border border-emerald-400 animate-bounce flex items-center space-x-1.5">
+          <i className="fa-solid fa-circle-check"></i>
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* 頂部列 Header */}
       <Header />
 
@@ -78,11 +92,13 @@ export const App: React.FC = () => {
       </main>
 
       {/* 底部導覽列 NAVBAR */}
-      <nav className="bg-slate-800 border-t border-slate-700 fixed bottom-0 left-0 right-0 max-w-md mx-auto z-30 flex justify-around py-2 text-center text-xs">
+      <nav className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto z-30 flex justify-around py-2 text-center text-xs border-t transition-colors ${
+        isLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-slate-800 border-slate-700 text-slate-300'
+      }`}>
         <button
           onClick={() => setActiveTab('holdings')}
           className={`flex-1 flex flex-col items-center space-y-1 ${
-            activeTab === 'holdings' ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+            activeTab === 'holdings' ? 'text-amber-500 font-bold' : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
           }`}
         >
           <i className="fa-solid fa-box-archive text-base"></i>
@@ -91,7 +107,7 @@ export const App: React.FC = () => {
         <button
           onClick={() => setActiveTab('calculator')}
           className={`flex-1 flex flex-col items-center space-y-1 ${
-            activeTab === 'calculator' ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+            activeTab === 'calculator' ? 'text-amber-500 font-bold' : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
           }`}
         >
           <i className="fa-solid fa-calculator text-base"></i>
@@ -100,7 +116,7 @@ export const App: React.FC = () => {
         <button
           onClick={() => setActiveTab('history')}
           className={`flex-1 flex flex-col items-center space-y-1 ${
-            activeTab === 'history' ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+            activeTab === 'history' ? 'text-amber-500 font-bold' : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
           }`}
         >
           <i className="fa-solid fa-clock-rotate-left text-base"></i>
@@ -109,7 +125,7 @@ export const App: React.FC = () => {
         <button
           onClick={() => setActiveTab('market')}
           className={`flex-1 flex flex-col items-center space-y-1 ${
-            activeTab === 'market' ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+            activeTab === 'market' ? 'text-amber-500 font-bold' : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
           }`}
         >
           <i className="fa-solid fa-globe text-base"></i>
@@ -118,7 +134,7 @@ export const App: React.FC = () => {
         <button
           onClick={() => setActiveTab('settings')}
           className={`flex-1 flex flex-col items-center space-y-1 ${
-            activeTab === 'settings' ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+            activeTab === 'settings' ? 'text-amber-500 font-bold' : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
           }`}
         >
           <i className="fa-solid fa-sliders text-base"></i>
@@ -135,3 +151,4 @@ export const App: React.FC = () => {
     </div>
   );
 };
+
