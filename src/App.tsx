@@ -11,6 +11,7 @@ import { TradeTypeModal } from './components/modals/TradeTypeModal';
 import { ProfitSummaryModal } from './components/modals/ProfitSummaryModal';
 import { SellModal } from './components/modals/SellModal';
 import { AccountModal } from './components/modals/AccountModal';
+import { EditHistoryModal } from './components/modals/EditHistoryModal';
 
 export const App: React.FC = () => {
   const {
@@ -148,6 +149,7 @@ export const App: React.FC = () => {
       <ProfitSummaryModal />
       <SellModal />
       <AccountModal />
+      <EditHistoryModal />
     </div>
   );
 };

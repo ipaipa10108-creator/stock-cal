@@ -46,6 +46,12 @@ interface StockStore {
   setShowAccountModal: (val: boolean) => void;
   showSellModal: boolean;
   setShowSellModal: (val: boolean) => void;
+  showEditHistoryModal: boolean;
+  setShowEditHistoryModal: (val: boolean) => void;
+  editingHistoryItem: HistoryItem | null;
+  openEditHistoryModal: (item: HistoryItem) => void;
+  updateHistoryItem: (item: HistoryItem) => void;
+  deleteHistoryItem: (id: string) => void;
 
   // PWA Installation
   deferredPrompt: any;
@@ -165,6 +171,37 @@ export const useStockStore = create<StockStore>((set, get) => ({
   setShowAccountModal: (val) => set({ showAccountModal: val }),
   showSellModal: false,
   setShowSellModal: (val) => set({ showSellModal: val }),
+  showEditHistoryModal: false,
+  setShowEditHistoryModal: (val) => set({ showEditHistoryModal: val }),
+  editingHistoryItem: null,
+  openEditHistoryModal: (item) => set({ editingHistoryItem: item, showEditHistoryModal: true }),
+  updateHistoryItem: (item) => {
+    const accId = get().currentAccountId;
+    const history = { ...get().historyData };
+    if (history[accId]) {
+      const idx = history[accId].findIndex(h => h.id === item.id);
+      if (idx !== -1) {
+        history[accId][idx] = item;
+        set({ historyData: history, showEditHistoryModal: false, editingHistoryItem: null });
+        get().saveToStorage();
+        get().setToastMessage('已成功更新歷史交易紀錄！');
+        setTimeout(() => get().setToastMessage(null), 2500);
+      }
+    }
+  },
+  deleteHistoryItem: (id) => {
+    if (confirm('確定要刪除這筆歷史交易紀錄嗎？')) {
+      const accId = get().currentAccountId;
+      const history = { ...get().historyData };
+      if (history[accId]) {
+        history[accId] = history[accId].filter(h => h.id !== id);
+        set({ historyData: history });
+        get().saveToStorage();
+        get().setToastMessage('已刪除歷史交易紀錄！');
+        setTimeout(() => get().setToastMessage(null), 2500);
+      }
+    }
+  },
 
   deferredPrompt: null,
   canInstallPwa: false,

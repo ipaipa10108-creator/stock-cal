@@ -8,7 +8,9 @@ export const HistoryTab: React.FC = () => {
     currentAccountId,
     historyFilter,
     setHistoryFilter,
-    themeMode
+    themeMode,
+    openEditHistoryModal,
+    deleteHistoryItem
   } = useStockStore();
 
   const isLight = themeMode === 'light';
@@ -96,7 +98,7 @@ export const HistoryTab: React.FC = () => {
           {filtered.map((item) => (
             <div
               key={item.id}
-              className={`p-3 rounded-xl border shadow-sm space-y-1.5 transition-colors ${
+              className={`p-3 rounded-xl border shadow-sm space-y-2 transition-colors ${
                 isLight ? 'bg-white border-slate-200 hover:border-slate-300' : 'bg-slate-800 border-slate-700/80'
               }`}
             >
@@ -129,13 +131,37 @@ export const HistoryTab: React.FC = () => {
                 </div>
               </div>
 
-              <div className={`flex justify-between items-center text-xs pt-1 border-t ${
+              <div className={`flex justify-between items-center text-xs pt-1.5 border-t ${
                 isLight ? 'border-slate-100 text-slate-500' : 'border-slate-700/50 text-slate-400'
               }`}>
-                <span>股數: {formatNum(item.shares)} 股</span>
-                <span>
-                  {item.buyDate} ~ {item.sellDate}
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span>股數: {formatNum(item.shares)} 股</span>
+                  <span className="text-[10px] opacity-60">({item.buyDate} ~ {item.sellDate})</span>
+                </div>
+                
+                {/* 修改與刪除按鈕 */}
+                <div className="flex items-center space-x-1.5">
+                  <button
+                    onClick={() => openEditHistoryModal(item)}
+                    className={`px-2 py-0.5 rounded text-[11px] font-bold flex items-center space-x-1 transition ${
+                      isLight ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-amber-900/40 text-amber-300 hover:bg-amber-800/60'
+                    }`}
+                    title="修改此筆歷史紀錄"
+                  >
+                    <i className="fa-solid fa-pen-to-square text-[10px]"></i>
+                    <span>修改</span>
+                  </button>
+                  <button
+                    onClick={() => deleteHistoryItem(item.id)}
+                    className={`px-2 py-0.5 rounded text-[11px] font-bold flex items-center space-x-1 transition ${
+                      isLight ? 'bg-rose-100 text-rose-700 hover:bg-rose-200' : 'bg-rose-900/40 text-rose-400 hover:bg-rose-800/60'
+                    }`}
+                    title="刪除此筆歷史紀錄"
+                  >
+                    <i className="fa-solid fa-trash-can text-[10px]"></i>
+                    <span>刪除</span>
+                  </button>
+                </div>
               </div>
             </div>
           ))}

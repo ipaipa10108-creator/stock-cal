@@ -1,39 +1,146 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStockStore } from '../store/useStockStore';
+import {
+  GlobalIndexQuote,
+  initialGlobalIndices,
+  fetchAllGlobalIndices
+} from '../services/marketIndices';
+import { formatNum } from '../utils/stockMath';
 
 export const MarketTab: React.FC = () => {
-  const { presetStockList, selectAddStock, openAddModal, themeMode } = useStockStore();
+  const { presetStockList, selectAddStock, openAddModal, themeMode, setToastMessage } = useStockStore();
   const isLight = themeMode === 'light';
+
+  const [indices, setIndices] = useState<GlobalIndexQuote[]>(initialGlobalIndices);
+  const [selectedCategory, setSelectedCategory] = useState<string>('全部');
+  const [isRefreshingIndices, setIsRefreshingIndices] = useState<boolean>(false);
+  const [lastUpdatedTime, setLastUpdatedTime] = useState<string>('');
+
+  const loadIndices = async (isManual = false) => {
+    setIsRefreshingIndices(true);
+    try {
+      const updated = await fetchAllGlobalIndices(indices);
+      setIndices(updated);
+      const timeStr = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      setLastUpdatedTime(timeStr);
+      if (isManual) {
+        setToastMessage('已更新全球國際市場指數！');
+        setTimeout(() => setToastMessage(null), 2500);
+      }
+    } catch (e) {
+      console.warn('Index fetch notice:', e);
+    } finally {
+      setIsRefreshingIndices(false);
+    }
+  };
+
+  useEffect(() => {
+    loadIndices();
+    const interval = setInterval(() => loadIndices(), 60000); // refresh every minute
+    return () => clearInterval(interval);
+  }, []);
 
   const handleQuickAdd = (stk: any) => {
     openAddModal();
     selectAddStock(stk);
   };
 
+  const categories = ['全部', '美股四大', '亞太指數', '歐洲指數', '台股'];
+
+  const filteredIndices = indices.filter(idx => {
+    if (selectedCategory === '全部') return true;
+    return idx.category === selectedCategory;
+  });
+
   return (
     <div className="space-y-3">
-      {/* 指數指標 */}
-      <div className={`p-3 rounded-xl border transition-colors shadow-sm ${
+      {/* 國際市場指數速覽 */}
+      <div className={`p-3 rounded-xl border transition-colors shadow-sm space-y-2.5 ${
         isLight ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-700'
       }`}>
-        <h3 className={`text-sm font-bold mb-2 flex items-center space-x-2 ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
-          <i className="fa-solid fa-chart-line text-amber-500"></i>
-          <span>即時市場指標速覽</span>
-        </h3>
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className={`p-2.5 rounded-lg border ${
-            isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900 border-slate-700/60'
-          }`}>
-            <div className={isLight ? 'text-slate-600 font-medium' : 'text-slate-400'}>加權指數 (TAIEX)</div>
-            <div className="text-sm font-black text-tw-up mt-0.5">23,415.80 (+185.20)</div>
-          </div>
-          <div className={`p-2.5 rounded-lg border ${
-            isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900 border-slate-700/60'
-          }`}>
-            <div className={isLight ? 'text-slate-600 font-medium' : 'text-slate-400'}>櫃買指數 (TPEx)</div>
-            <div className="text-sm font-black text-tw-up mt-0.5">270.45 (+1.82)</div>
-          </div>
+        <div className="flex justify-between items-center">
+          <h3 className={`text-sm font-bold flex items-center space-x-1.5 ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
+            <i className="fa-solid fa-earth-americas text-amber-500"></i>
+            <span>即時市場指標速覽 (含盤後標註)</span>
+          </h3>
+          <button
+            onClick={() => loadIndices(true)}
+            disabled={isRefreshingIndices}
+            className={`text-xs px-2 py-1 rounded-lg font-bold flex items-center space-x-1 transition ${
+              isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+            }`}
+            title="重新整理指數"
+          >
+            <i className={`fa-solid fa-rotate-right ${isRefreshingIndices ? 'animate-spin text-amber-500' : ''}`}></i>
+            <span>{isRefreshingIndices ? '更新中' : '刷新'}</span>
+          </button>
         </div>
+
+        {/* 分類切換按鈕 */}
+        <div className="flex space-x-1 overflow-x-auto pb-1 no-scrollbar">
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition ${
+                selectedCategory === cat
+                  ? 'bg-amber-500 text-white shadow-sm'
+                  : (isLight
+                      ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      : 'bg-slate-900 text-slate-400 hover:bg-slate-700/70')
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* 國際指數卡片網格 */}
+        <div className="grid grid-cols-2 gap-2 text-xs max-h-96 overflow-y-auto pr-0.5">
+          {filteredIndices.map((idx) => {
+            const isUp = idx.change >= 0;
+            return (
+              <div
+                key={idx.symbol}
+                className={`p-2.5 rounded-lg border flex flex-col justify-between transition ${
+                  isLight ? 'bg-slate-50 border-slate-200 hover:border-slate-300' : 'bg-slate-900 border-slate-700/70 hover:border-slate-600'
+                }`}
+              >
+                <div className="flex justify-between items-center mb-1">
+                  <span className={`font-extrabold text-xs truncate max-w-[100px] ${isLight ? 'text-slate-800' : 'text-slate-200'}`} title={idx.name}>
+                    {idx.name}
+                  </span>
+                  {/* 即時 / 盤後 標籤 */}
+                  <span
+                    className={`text-[9px] px-1.5 py-0.5 rounded font-black tracking-wider ${
+                      idx.isMarketOpen
+                        ? 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/30'
+                        : 'bg-slate-500/20 text-slate-400 border border-slate-500/30'
+                    }`}
+                  >
+                    {idx.marketStateText}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-end mt-1">
+                  <div className={`text-xs font-black ${isUp ? 'text-tw-up' : 'text-tw-down'}`}>
+                    {idx.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className={`text-[11px] font-extrabold text-right ${isUp ? 'text-tw-up' : 'text-tw-down'}`}>
+                    <div>{isUp ? '+' : ''}{idx.change.toFixed(2)}</div>
+                    <div>({isUp ? '+' : ''}{idx.changePct.toFixed(2)}%)</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {lastUpdatedTime && (
+          <div className={`text-[10px] text-right font-medium ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
+            最後更新時間: {lastUpdatedTime}
+          </div>
+        )}
       </div>
 
       {/* 台股熱門個股動態庫 */}
@@ -44,7 +151,7 @@ export const MarketTab: React.FC = () => {
           <h3 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>熱門台股動態即時價</h3>
           <span className={`text-[11px] font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>點擊可快速新增</span>
         </div>
-        <div className="space-y-1.5 max-h-96 overflow-y-auto pr-1">
+        <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
           {presetStockList.map((stk) => (
             <div
               key={stk.code}
@@ -91,4 +198,3 @@ export const MarketTab: React.FC = () => {
     </div>
   );
 };
-
