@@ -61,22 +61,26 @@ export const AddHoldingModal: React.FC = () => {
 
     const live = await fetchSingleYahooQuote(targetCode);
     if (live && live.price > 0) {
+      const isEtf = live.code.startsWith('00') || live.type === 'ETF';
       setHoldingForm({
         symbol: live.code,
         name: live.name,
         symbolSearch: `${live.code} - ${live.name}`,
         currentPrice: live.price,
         buyPrice: holdingForm.buyPrice > 0 ? holdingForm.buyPrice : live.price,
-        assetType: live.type || (live.code.startsWith('00') ? 'ETF' : '股票')
+        assetType: isEtf ? 'ETF' : '股票',
+        nav: live.nav !== undefined ? live.nav : holdingForm.nav
       });
     } else if (stk && stk.price > 0) {
+      const isEtf = stk.code.startsWith('00') || stk.type === 'ETF';
       setHoldingForm({
         symbol: stk.code,
         name: stk.name,
         symbolSearch: `${stk.code} - ${stk.name}`,
         currentPrice: stk.price,
         buyPrice: holdingForm.buyPrice > 0 ? holdingForm.buyPrice : stk.price,
-        assetType: stk.type || (stk.code.startsWith('00') ? 'ETF' : '股票')
+        assetType: isEtf ? 'ETF' : '股票',
+        nav: stk.nav !== undefined ? stk.nav : holdingForm.nav
       });
     }
   };
