@@ -46,6 +46,8 @@ export interface HoldingItem {
   flashClass?: string;
   nav?: number;
   lots?: HoldingLot[];
+  pinned?: boolean;
+  orderIndex?: number;
 }
 
 export interface ComputedHolding extends HoldingItem {
@@ -55,6 +57,8 @@ export interface ComputedHolding extends HoldingItem {
   unrealizedPnl: number;
   unrealizedPnlPct: number;
   nav?: number;
+  pinned?: boolean;
+  orderIndex?: number;
 }
 
 export interface HistoryItem {
@@ -101,5 +105,6 @@ export interface HoldingFormState {
   minFee: number;
   nav?: number;
   lots?: HoldingLot[];
+  pinned?: boolean;
+  orderIndex?: number;
 }
-

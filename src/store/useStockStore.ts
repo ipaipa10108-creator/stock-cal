@@ -129,6 +129,10 @@ interface StockStore {
 
   addCalcToHoldings: () => void;
 
+  // Pin & Custom Ordering
+  togglePinHolding: (id: string) => void;
+  moveHoldingOrder: (id: string, direction: 'up' | 'down') => void;
+
   // Storage
   loadFromStorage: () => void;
   saveToStorage: () => void;
@@ -362,6 +366,48 @@ export const useStockStore = create<StockStore>((set, get) => ({
     else if (mode === 'pnl') set({ sortMode: 'marketValue' });
     else if (mode === 'marketValue') set({ sortMode: 'symbol' });
     else set({ sortMode: 'createdAt' });
+  },
+
+  togglePinHolding: (id: string) => {
+    const accId = get().currentAccountId;
+    const holdings = { ...get().holdingsData };
+    const list = holdings[accId] || [];
+    const idx = list.findIndex(h => h.id === id);
+
+    if (idx !== -1) {
+      const nextPinned = !list[idx].pinned;
+      list[idx] = { ...list[idx], pinned: nextPinned };
+      set({ holdingsData: holdings });
+      get().saveToStorage();
+
+      const item = list[idx];
+      get().setToastMessage(
+        nextPinned
+          ? `已將【${item.symbol} ${item.name}】釘選置頂！`
+          : `已取消【${item.symbol} ${item.name}】釘選！`
+      );
+      setTimeout(() => get().setToastMessage(null), 2500);
+    }
+  },
+
+  moveHoldingOrder: (id: string, direction: 'up' | 'down') => {
+    const accId = get().currentAccountId;
+    const holdings = { ...get().holdingsData };
+    const list = [...(holdings[accId] || [])];
+    const idx = list.findIndex(h => h.id === id);
+
+    if (idx === -1) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+
+    if (targetIdx >= 0 && targetIdx < list.length) {
+      const temp = list[idx];
+      list[idx] = list[targetIdx];
+      list[targetIdx] = temp;
+
+      holdings[accId] = list;
+      set({ holdingsData: holdings });
+      get().saveToStorage();
+    }
   },
   historyFilter: { startDate: '2026-07-01', endDate: todayStr },
   setHistoryFilter: (filter) => set({ historyFilter: filter }),

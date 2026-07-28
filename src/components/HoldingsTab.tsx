@@ -26,6 +26,8 @@ export const HoldingsTab: React.FC = () => {
     openSellModal,
     deleteHolding,
     splitMergedHolding,
+    togglePinHolding,
+    moveHoldingOrder,
     themeMode
   } = useStockStore();
 
@@ -69,24 +71,33 @@ export const HoldingsTab: React.FC = () => {
     return true;
   });
 
-  if (sortMode === 'createdAt') {
-    filtered.sort((a, b) => {
+  const pinnedItems = filtered.filter(h => h.pinned);
+  const unpinnedItems = filtered.filter(h => !h.pinned);
+
+  const sortFn = (a: ComputedHolding, b: ComputedHolding) => {
+    if (sortMode === 'pnl') {
+      return b.unrealizedPnl - a.unrealizedPnl;
+    } else if (sortMode === 'marketValue') {
+      return b.marketValue - a.marketValue;
+    } else if (sortMode === 'symbol') {
+      return a.symbol.localeCompare(b.symbol);
+    } else {
+      // 'createdAt' (default/custom)
       const timeA = parseInt(a.id.replace(/[^\d]/g, '')) || 0;
       const timeB = parseInt(b.id.replace(/[^\d]/g, '')) || 0;
       return timeB - timeA;
-    });
-  } else if (sortMode === 'pnl') {
-    filtered.sort((a, b) => a.unrealizedPnl - b.unrealizedPnl);
-  } else if (sortMode === 'marketValue') {
-    filtered.sort((a, b) => b.marketValue - a.marketValue);
-  } else {
-    filtered.sort((a, b) => a.symbol.localeCompare(b.symbol));
-  }
+    }
+  };
+
+  pinnedItems.sort(sortFn);
+  unpinnedItems.sort(sortFn);
+
+  const sortedList = [...pinnedItems, ...unpinnedItems];
 
   const sortModeLabel = 
-    sortMode === 'createdAt' ? '最新加入' :
-    sortMode === 'pnl' ? '損益排序' :
-    sortMode === 'marketValue' ? '市值排序' : '代號排序';
+    sortMode === 'createdAt' ? '最新加入 (自訂)' :
+    sortMode === 'pnl' ? '損益最高' :
+    sortMode === 'marketValue' ? '市值最高' : '代號排序';
 
   return (
     <div className="space-y-3">
@@ -94,7 +105,8 @@ export const HoldingsTab: React.FC = () => {
       <div className="flex items-center justify-between text-xs px-1 font-bold">
         <span className={isLight ? 'text-slate-600' : 'text-slate-300'}>
           <i className="fa-solid fa-layer-group text-blue-500 mr-1.5"></i>
-          庫存筆記 (顯示 {filtered.length} 筆 / 共 {currentList.length} 筆資料)
+          庫存筆記 (顯示 {sortedList.length} 筆 / 共 {currentList.length} 筆資料)
+          {pinnedItems.length > 0 && <span className="ml-2 text-amber-500 font-extrabold">📌 {pinnedItems.length} 筆置頂</span>}
         </span>
       </div>
 
@@ -121,9 +133,10 @@ export const HoldingsTab: React.FC = () => {
         {/* 排序按鈕 */}
         <button
           onClick={toggleSort}
-          className={`text-xs px-2 py-1 rounded flex items-center space-x-1 transition ${
+          className={`text-xs px-2 py-1 rounded flex items-center space-x-1 transition font-bold ${
             isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
           }`}
+          title="切換排序方式 (釘選項目固定維持最頂端)"
         >
           <i className="fa-solid fa-arrow-down-short-wide text-xs"></i>
           <span>{sortModeLabel}</span>
@@ -131,7 +144,7 @@ export const HoldingsTab: React.FC = () => {
       </div>
 
       {/* 庫存列表 */}
-      {filtered.length === 0 ? (
+      {sortedList.length === 0 ? (
         <div className={`text-center py-12 space-y-3 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
           <i className="fa-solid fa-folder-open text-4xl text-slate-400"></i>
           <p className="text-sm font-semibold">目前此分類下無庫存股票</p>
@@ -144,7 +157,7 @@ export const HoldingsTab: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-2.5">
-          {filtered.map((item) => {
+          {sortedList.map((item) => {
             const disc = item.discount !== undefined ? item.discount : globalDiscount;
             const breakEven = calcBreakEvenPrice(
               item.buyPrice,
@@ -164,10 +177,12 @@ export const HoldingsTab: React.FC = () => {
               <div
                 key={item.id}
                 className={`rounded-xl p-3 border transition shadow-sm relative overflow-hidden ${
-                  isLight ? 'bg-white border-slate-200 hover:border-slate-300' : 'bg-slate-800 border-slate-700/80 hover:border-slate-600'
+                  item.pinned
+                    ? (isLight ? 'bg-amber-50/50 border-amber-400 shadow-md ring-1 ring-amber-300' : 'bg-slate-800 border-amber-500/80 shadow-lg ring-1 ring-amber-500/40')
+                    : (isLight ? 'bg-white border-slate-200 hover:border-slate-300' : 'bg-slate-800 border-slate-700/80 hover:border-slate-600')
                 } ${item.flashClass || ''}`}
               >
-                {/* 標題列：代號/名稱與未實現損益 */}
+                {/* 標題列：代號/名稱、釘選按鈕與未實現損益 */}
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <div className="flex items-center space-x-2">
@@ -198,16 +213,31 @@ export const HoldingsTab: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* 損益與報酬率 */}
-                  <div className="text-right">
-                    <div className={`text-xs ${isLight ? 'text-slate-500 font-medium' : 'text-slate-400'}`}>未實現損益 :</div>
-                    <div className={`text-base font-black ${getPnlColorClass(item.unrealizedPnl)}`}>
-                      {item.unrealizedPnl >= 0 ? '+' : ''}{formatNum(item.unrealizedPnl)}
+                  {/* 釘選按鈕與損益區塊 */}
+                  <div className="flex flex-col items-end space-y-1">
+                    <button
+                      onClick={() => togglePinHolding(item.id)}
+                      title={item.pinned ? "取消釘選置頂" : "將此庫存固定置頂於最上方"}
+                      className={`text-xs px-2 py-0.5 rounded-md transition font-bold flex items-center space-x-1 border ${
+                        item.pinned
+                          ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
+                          : (isLight ? 'bg-slate-100 hover:bg-amber-100 text-slate-500 hover:text-amber-700 border-slate-200' : 'bg-slate-700 hover:bg-slate-600 text-slate-400 hover:text-amber-300 border-slate-600')
+                      }`}
+                    >
+                      <i className="fa-solid fa-thumbtack text-[11px]"></i>
+                      <span>{item.pinned ? '已置頂' : '釘選'}</span>
+                    </button>
+
+                    <div className="text-right pt-1">
+                      <div className={`text-xs ${isLight ? 'text-slate-500 font-medium' : 'text-slate-400'}`}>未實現損益 :</div>
+                      <div className={`text-base font-black ${getPnlColorClass(item.unrealizedPnl)}`}>
+                        {item.unrealizedPnl >= 0 ? '+' : ''}{formatNum(item.unrealizedPnl)}
+                      </div>
+                      <div className={`text-xs font-bold ${getPnlColorClass(item.unrealizedPnl)}`}>
+                        {formatPct(item.unrealizedPnlPct)}
+                      </div>
+                      <div className={`text-[10px] mt-1 ${isLight ? 'text-slate-400 font-medium' : 'text-slate-400'}`}>{item.date}</div>
                     </div>
-                    <div className={`text-xs font-bold ${getPnlColorClass(item.unrealizedPnl)}`}>
-                      {formatPct(item.unrealizedPnlPct)}
-                    </div>
-                    <div className={`text-[10px] mt-1 ${isLight ? 'text-slate-400 font-medium' : 'text-slate-400'}`}>{item.date}</div>
                   </div>
                 </div>
 
@@ -315,33 +345,61 @@ export const HoldingsTab: React.FC = () => {
                   );
                 })()}
 
-                {/* 快捷操作鈕 */}
-                <div className={`flex justify-end space-x-2 mt-2 pt-2 border-t text-xs ${
+                {/* 快捷操作鈕與順序微調按鈕 */}
+                <div className={`flex justify-between items-center mt-2 pt-2 border-t text-xs ${
                   isLight ? 'border-slate-200' : 'border-slate-700/40'
                 }`}>
-                  <button
-                    onClick={() => openSellModal(item)}
-                    className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded flex items-center space-x-1 shadow-sm transition"
-                  >
-                    <i className="fa-solid fa-right-from-bracket"></i>
-                    <span>平倉/賣出</span>
-                  </button>
-                  <button
-                    onClick={() => openEditModal(item)}
-                    className={`px-2 py-1 rounded transition ${
-                      isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
-                    }`}
-                  >
-                    <i className="fa-solid fa-pen-to-square"></i>
-                  </button>
-                  <button
-                    onClick={() => deleteHolding(item.id)}
-                    className={`px-2 py-1 rounded transition ${
-                      isLight ? 'bg-rose-50 hover:bg-rose-100 text-rose-600' : 'bg-slate-700 hover:bg-rose-900/50 text-rose-400'
-                    }`}
-                  >
-                    <i className="fa-solid fa-trash"></i>
-                  </button>
+                  {/* 自訂順序調整鈕 */}
+                  {sortMode === 'createdAt' ? (
+                    <div className="flex space-x-1">
+                      <button
+                        onClick={() => moveHoldingOrder(item.id, 'up')}
+                        title="往上移動順序"
+                        className={`px-2 py-1 text-xs rounded font-bold transition flex items-center space-x-1 ${
+                          isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+                        }`}
+                      >
+                        <i className="fa-solid fa-arrow-up text-[10px]"></i>
+                        <span>上移</span>
+                      </button>
+                      <button
+                        onClick={() => moveHoldingOrder(item.id, 'down')}
+                        title="往下移動順序"
+                        className={`px-2 py-1 text-xs rounded font-bold transition flex items-center space-x-1 ${
+                          isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+                        }`}
+                      >
+                        <i className="fa-solid fa-arrow-down text-[10px]"></i>
+                        <span>下移</span>
+                      </button>
+                    </div>
+                  ) : <div />}
+
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => openSellModal(item)}
+                      className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded flex items-center space-x-1 shadow-sm transition"
+                    >
+                      <i className="fa-solid fa-right-from-bracket"></i>
+                      <span>平倉/賣出</span>
+                    </button>
+                    <button
+                      onClick={() => openEditModal(item)}
+                      className={`px-2 py-1 rounded transition ${
+                        isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+                      }`}
+                    >
+                      <i className="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    <button
+                      onClick={() => deleteHolding(item.id)}
+                      className={`px-2 py-1 rounded transition ${
+                        isLight ? 'bg-rose-50 hover:bg-rose-100 text-rose-600' : 'bg-slate-700 hover:bg-rose-900/50 text-rose-400'
+                      }`}
+                    >
+                      <i className="fa-solid fa-trash"></i>
+                    </button>
+                  </div>
                 </div>
               </div>
             );
