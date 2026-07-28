@@ -13,7 +13,7 @@ import {
   HoldingLot
 } from '../types/stock';
 import { calcTradeDetails } from '../utils/stockMath';
-import { checkTradingHours, fetchQuotesByProvider, fetchSingleYahooQuote } from '../services/twseApi';
+import { checkTradingHours, fetchQuotesByProvider, fetchSingleYahooQuote, fetchTwseOpenApiQuotes } from '../services/twseApi';
 import { initialStockDictionary } from '../db/stockDictionary';
 import { GlobalIndexQuote, initialGlobalIndices } from '../services/marketIndices';
 
@@ -1016,7 +1016,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
 
   loadFromStorage: () => {
     // Background preload full TWSE/TPEx stock dictionary (~2000+ stocks & ETFs with Chinese names)
-    fetchTwseOpenApiQuotes().then(openApiMap => {
+    fetchTwseOpenApiQuotes().then((openApiMap: Record<string, StockQuote> | null) => {
       if (openApiMap) {
         set(state => ({
           fullStockMap: { ...state.fullStockMap, ...openApiMap }
