@@ -1,28 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { useStockStore } from '../store/useStockStore';
-import {
-  GlobalIndexQuote,
-  initialGlobalIndices,
-  fetchAllGlobalIndices
-} from '../services/marketIndices';
-import { formatNum } from '../utils/stockMath';
+import { fetchAllGlobalIndices } from '../services/marketIndices';
 
 export const MarketTab: React.FC = () => {
-  const { presetStockList, selectAddStock, openAddModal, themeMode, setToastMessage } = useStockStore();
+  const {
+    presetStockList,
+    selectAddStock,
+    openAddModal,
+    themeMode,
+    setToastMessage,
+    globalIndicesData,
+    indicesLastUpdated,
+    setGlobalIndicesData
+  } = useStockStore();
   const isLight = themeMode === 'light';
 
-  const [indices, setIndices] = useState<GlobalIndexQuote[]>(initialGlobalIndices);
   const [selectedCategory, setSelectedCategory] = useState<string>('全部');
   const [isRefreshingIndices, setIsRefreshingIndices] = useState<boolean>(false);
-  const [lastUpdatedTime, setLastUpdatedTime] = useState<string>('');
 
   const loadIndices = async (isManual = false) => {
     setIsRefreshingIndices(true);
     try {
-      const updated = await fetchAllGlobalIndices(indices);
-      setIndices(updated);
+      const updated = await fetchAllGlobalIndices(globalIndicesData);
       const timeStr = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      setLastUpdatedTime(timeStr);
+      setGlobalIndicesData(updated, timeStr);
       if (isManual) {
         setToastMessage('已更新全球國際市場指數！');
         setTimeout(() => setToastMessage(null), 2500);
@@ -47,7 +48,7 @@ export const MarketTab: React.FC = () => {
 
   const categories = ['全部', '美股四大', '亞太指數', '歐洲指數', '台股'];
 
-  const filteredIndices = indices.filter(idx => {
+  const filteredIndices = globalIndicesData.filter(idx => {
     if (selectedCategory === '全部') return true;
     return idx.category === selectedCategory;
   });
@@ -136,9 +137,9 @@ export const MarketTab: React.FC = () => {
           })}
         </div>
 
-        {lastUpdatedTime && (
+        {indicesLastUpdated && (
           <div className={`text-[10px] text-right font-medium ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
-            最後更新時間: {lastUpdatedTime}
+            最後更新時間: {indicesLastUpdated}
           </div>
         )}
       </div>

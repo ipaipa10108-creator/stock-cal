@@ -38,29 +38,137 @@ export const initialGlobalIndices: GlobalIndexQuote[] = [
   { symbol: '^FCHI', name: '法國 CAC 40 指數', category: '歐洲指數', price: 7517.68, change: 90.00, changePct: 1.21, isMarketOpen: false, marketStateText: '盤後' }
 ];
 
+/**
+ * Check US market trading hours (Mon-Fri 09:30 - 16:00 ET)
+ */
+const isUSMarketOpen = (): boolean => {
+  try {
+    const options: Intl.DateTimeFormatOptions = {
+      timeZone: 'America/New_York',
+      weekday: 'short',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false
+    };
+    const formatter = new Intl.DateTimeFormat('en-US', options);
+    const parts = formatter.formatToParts(new Date());
+    let weekday = '';
+    let hour = 0;
+    let minute = 0;
+
+    for (const part of parts) {
+      if (part.type === 'weekday') weekday = part.value;
+      if (part.type === 'hour') hour = parseInt(part.value, 10);
+      if (part.type === 'minute') minute = parseInt(part.value, 10);
+    }
+
+    if (weekday === 'Sat' || weekday === 'Sun') return false;
+    const mins = hour * 60 + minute;
+    return mins >= 570 && mins < 960; // 09:30 (570) to 16:00 (960)
+  } catch (e) {
+    return false;
+  }
+};
+
+/**
+ * Check Taiwan market trading hours (Mon-Fri 09:00 - 13:30 TST)
+ */
+const isTaiwanMarketOpen = (): boolean => {
+  try {
+    const options: Intl.DateTimeFormatOptions = {
+      timeZone: 'Asia/Taipei',
+      weekday: 'short',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false
+    };
+    const formatter = new Intl.DateTimeFormat('en-US', options);
+    const parts = formatter.formatToParts(new Date());
+    let weekday = '';
+    let hour = 0;
+    let minute = 0;
+
+    for (const part of parts) {
+      if (part.type === 'weekday') weekday = part.value;
+      if (part.type === 'hour') hour = parseInt(part.value, 10);
+      if (part.type === 'minute') minute = parseInt(part.value, 10);
+    }
+
+    if (weekday === 'Sat' || weekday === 'Sun') return false;
+    const mins = hour * 60 + minute;
+    return mins >= 540 && mins <= 810; // 09:00 (540) to 13:30 (810)
+  } catch (e) {
+    return false;
+  }
+};
+
+/**
+ * Robust check if index market is open
+ */
+const checkIsMarketOpen = (meta: any, category: string): boolean => {
+  // 1. Explicit marketState from Yahoo API
+  const marketState = (meta?.marketState || '').toUpperCase();
+  if (marketState === 'REGULAR' || marketState === 'REGULAR_MARKET') return true;
+
+  // 2. Explicit currentTradingPeriod from Yahoo API
+  const regPeriod = meta?.currentTradingPeriod?.regular;
+  if (regPeriod?.start && regPeriod?.end) {
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (nowSec >= regPeriod.start && nowSec <= regPeriod.end) {
+      return true;
+    }
+  }
+
+  // 3. Fallback based on category timezone calculation
+  if (category === '美股四大') {
+    return isUSMarketOpen();
+  }
+  if (category === '台股') {
+    return isTaiwanMarketOpen();
+  }
+
+  return false;
+};
+
+/**
+ * Fetch a URL with quick AbortController timeout
+ */
+const fetchWithTimeout = async (url: string, timeoutMs: number = 3000): Promise<Response> => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
+    clearTimeout(id);
+    return response;
+  } catch (e) {
+    clearTimeout(id);
+    throw e;
+  }
+};
+
 const fetchIndexFromYahoo = async (item: GlobalIndexQuote): Promise<GlobalIndexQuote> => {
   const freshUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(item.symbol)}?_cb=${Date.now()}`;
   
   const proxies = [
-    freshUrl,
     `https://corsproxy.io/?${encodeURIComponent(freshUrl)}`,
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(freshUrl)}`,
     `https://api.allorigins.win/raw?url=${encodeURIComponent(freshUrl)}&_ts=${Date.now()}`,
-    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(freshUrl)}`
+    freshUrl
   ];
 
   for (const targetUrl of proxies) {
     try {
-      const res = await fetch(targetUrl, { cache: 'no-store' });
+      const res = await fetchWithTimeout(targetUrl, 2500);
       if (!res.ok) continue;
       const json = await res.json();
       const meta = json?.chart?.result?.[0]?.meta;
-      if (meta && meta.regularMarketPrice) {
-        const price = parseFloat(meta.regularMarketPrice);
+      if (meta && (meta.regularMarketPrice !== undefined || meta.chartPreviousClose !== undefined)) {
+        const price = parseFloat(meta.regularMarketPrice || meta.chartPreviousClose || item.price);
         const prevClose = parseFloat(meta.chartPreviousClose || meta.previousClose || price);
         const change = parseFloat((price - prevClose).toFixed(2));
         const changePct = prevClose > 0 ? parseFloat(((change / prevClose) * 100).toFixed(2)) : 0;
-        const marketState = (meta.marketState || '').toUpperCase();
-        const isMarketOpen = marketState === 'REGULAR';
+        
+        const isMarketOpen = checkIsMarketOpen(meta, item.category);
         const marketStateText = isMarketOpen ? '即時' : '盤後';
 
         return {
@@ -78,7 +186,13 @@ const fetchIndexFromYahoo = async (item: GlobalIndexQuote): Promise<GlobalIndexQ
     }
   }
 
-  return item;
+  // Fallback: If network fetch failed, evaluate marketState on existing item based on time
+  const fallbackIsOpen = checkIsMarketOpen(null, item.category);
+  return {
+    ...item,
+    isMarketOpen: fallbackIsOpen,
+    marketStateText: fallbackIsOpen ? '即時' : '盤後'
+  };
 };
 
 export const fetchAllGlobalIndices = async (

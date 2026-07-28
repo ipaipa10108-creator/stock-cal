@@ -15,6 +15,7 @@ import {
 import { calcTradeDetails } from '../utils/stockMath';
 import { checkTradingHours, fetchQuotesByProvider, fetchSingleYahooQuote } from '../services/twseApi';
 import { initialStockDictionary } from '../db/stockDictionary';
+import { GlobalIndexQuote, initialGlobalIndices } from '../services/marketIndices';
 
 interface StockStore {
   // Navigation & Modals
@@ -120,6 +121,13 @@ interface StockStore {
   splitMergedHolding: (holdingId: string) => void;
   resetCurrentAccountData: () => void;
   importDataFromJson: (parsed: any) => boolean;
+
+  // Global Indices Persistence
+  globalIndicesData: GlobalIndexQuote[];
+  indicesLastUpdated: string;
+  setGlobalIndicesData: (indices: GlobalIndexQuote[], timeStr?: string) => void;
+
+  addCalcToHoldings: () => void;
 
   // Storage
   loadFromStorage: () => void;
@@ -564,6 +572,106 @@ export const useStockStore = create<StockStore>((set, get) => ({
     }
   },
 
+  globalIndicesData: initialGlobalIndices,
+  indicesLastUpdated: '',
+  setGlobalIndicesData: (indices, timeStr) => {
+    const lastTime = timeStr || new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    set({ globalIndicesData: indices, indicesLastUpdated: lastTime });
+    get().saveToStorage();
+  },
+
+  addCalcToHoldings: () => {
+    const { calcForm, calcQuery, fullStockMap, currentAccountId, holdingsData, globalDiscount, setToastMessage, saveToStorage } = get();
+    
+    let inputRaw = (calcQuery || '').trim().toUpperCase();
+    let symbol = '';
+    let name = '';
+
+    if (inputRaw) {
+      const cleanRaw = inputRaw.replace(/\s*-\s*.*/, '').trim();
+      if (fullStockMap[cleanRaw]) {
+        symbol = fullStockMap[cleanRaw].code;
+        name = fullStockMap[cleanRaw].name;
+      } else {
+        const match = Object.values(fullStockMap).find(
+          s => s.code.toUpperCase() === cleanRaw || s.name.toUpperCase() === cleanRaw
+        );
+        if (match) {
+          symbol = match.code;
+          name = match.name;
+        } else {
+          symbol = cleanRaw;
+          name = cleanRaw;
+        }
+      }
+    }
+
+    if (!symbol) {
+      set({
+        isEditingHolding: false,
+        holdingForm: {
+          id: '',
+          symbolSearch: '',
+          symbol: '',
+          name: '',
+          buyPrice: calcForm.buyPrice,
+          currentPrice: calcForm.buyPrice,
+          shares: calcForm.buyShares,
+          discount: calcForm.discount,
+          assetType: calcForm.assetType,
+          tradeType: calcForm.tradeType,
+          date: todayStr,
+          minFee: calcForm.minFee
+        },
+        showAddModal: true
+      });
+      setToastMessage('已打開新增庫存視窗，請填寫股票標的');
+      setTimeout(() => setToastMessage(null), 2500);
+      return;
+    }
+
+    const buyPrice = calcForm.buyPrice || 0;
+    const shares = calcForm.buyShares || 1000;
+    const discount = calcForm.discount !== undefined ? calcForm.discount : globalDiscount;
+    const minFee = calcForm.minFee !== undefined ? calcForm.minFee : 20;
+    const assetType = calcForm.assetType || '股票';
+    const tradeType = calcForm.tradeType || '多-現股交易';
+    const curPrice = buyPrice;
+
+    const holdings = { ...get().holdingsData };
+    if (!holdings[currentAccountId]) holdings[currentAccountId] = [];
+
+    const defaultLot: HoldingLot = {
+      id: 'lot-' + Date.now(),
+      buyPrice,
+      shares,
+      date: todayStr,
+      tradeType
+    };
+
+    const itemToSave: HoldingItem = {
+      id: 'h-' + Date.now(),
+      symbol,
+      name,
+      buyPrice,
+      currentPrice: curPrice,
+      shares,
+      discount,
+      minFee,
+      assetType,
+      tradeType,
+      date: todayStr,
+      lots: [defaultLot]
+    };
+
+    holdings[currentAccountId].push(itemToSave);
+
+    set({ holdingsData: holdings });
+    saveToStorage();
+    setToastMessage(`已成功將試算標的【${symbol} ${name}】轉為新增庫存！`);
+    setTimeout(() => setToastMessage(null), 3000);
+  },
+
   sellTarget: null,
   sellForm: { price: 0, shares: 0, date: todayStr },
   openSellModal: (item) => {
@@ -906,7 +1014,9 @@ export const useStockStore = create<StockStore>((set, get) => ({
           globalDiscount: parsed.discount !== undefined ? parsed.discount : 0.38,
           accountLimitInput: parsed.limit || null,
           themeMode: parsed.themeMode || 'dark',
-          apiProvider: parsed.apiProvider || 'yahoo'
+          apiProvider: parsed.apiProvider || 'yahoo',
+          globalIndicesData: parsed.indices && parsed.indices.length > 0 ? parsed.indices : initialGlobalIndices,
+          indicesLastUpdated: parsed.indicesLastUpdated || ''
         });
         return;
       } catch (e) {
@@ -917,6 +1027,8 @@ export const useStockStore = create<StockStore>((set, get) => ({
     set({
       themeMode: 'dark',
       apiProvider: 'yahoo',
+      globalIndicesData: initialGlobalIndices,
+      indicesLastUpdated: '',
       holdingsData: {
         'acc-1': [
           {
@@ -985,7 +1097,9 @@ export const useStockStore = create<StockStore>((set, get) => ({
       discount: get().globalDiscount,
       limit: get().accountLimitInput,
       themeMode: get().themeMode,
-      apiProvider: get().apiProvider
+      apiProvider: get().apiProvider,
+      indices: get().globalIndicesData,
+      indicesLastUpdated: get().indicesLastUpdated
     }));
   }
 

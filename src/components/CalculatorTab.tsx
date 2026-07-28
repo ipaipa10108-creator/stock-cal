@@ -14,7 +14,8 @@ export const CalculatorTab: React.FC = () => {
     setTradeTypeContext,
     setShowTradeTypeModal,
     globalDiscount,
-    themeMode
+    themeMode,
+    addCalcToHoldings
   } = useStockStore();
 
   const isLight = themeMode === 'light';
@@ -267,6 +268,16 @@ export const CalculatorTab: React.FC = () => {
           <span className="font-black text-sm">${isNaN(breakEvenPrice) ? '0.00' : breakEvenPrice.toFixed(2)}</span>
         </div>
       </div>
+
+      {/* 一鍵轉為新增庫存按鈕 */}
+      <button
+        type="button"
+        onClick={addCalcToHoldings}
+        className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-sm rounded-xl flex items-center justify-center space-x-2 shadow transition cursor-pointer"
+      >
+        <i className="fa-solid fa-folder-plus text-base"></i>
+        <span>一鍵轉為新增庫存</span>
+      </button>
     </div>
   );
 };

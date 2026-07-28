@@ -6,29 +6,36 @@
 
 ## 🌟 最新功能與修改更新說明 (Release Updates)
 
-### 1. 📲 PWA 裝置桌面程式化 (Desktop & Mobile PWA App)
+### 1. 🌐 全球國際指數持久化與智慧更新加速 (Global Market Indices & Speedup)
+- **指數紀錄本機持久化**：國際指數數據 (`globalIndicesData`) 與最後更新時間標籤會持久化儲存於 `localStorage`，關閉 App 或重新整理頁面後仍保留最後讀取的真實指數與時間，不再重置回舊預設值。
+- **智慧更新讀取加速**：優化 Yahoo API 代理請求機制，加入 2.5 秒 `AbortController` 請求逾時控管與 Proxy 競速備援，解決以往智慧更新過慢的問題。
+
+### 2. 🇺🇸 美股四大指數盤中狀態標籤修正 (US Market Hours Fix)
+- **精準開盤狀態判斷**：重構開盤狀態判斷邏輯，除了 API `marketState` 與交易區間欄位外，加入美股時區 (`America/New_York`) 時間計算備援（台灣時間美股夏令 21:30 - 04:00 / 冬令 22:30 - 05:00），解決台灣時間晚上 11 點美股盤中誤顯示為「盤後」的問題。
+
+### 3. ➕ 成交試算一鍵轉為新增庫存 (One-Click Convert Trial to Holding)
+- **快速轉換試算筆記**：成交試算分頁新增 **【一鍵轉為新增庫存】** 按鈕，點擊後自動提取當前試算設定之標的代號/名稱、買價、股數、折扣、低限與交易類型，直接匯入目前選擇的帳戶庫存中並提示 Toast 訊息。
+
+### 4. 📲 PWA 裝置桌面程式化 (Desktop & Mobile PWA App)
 - **獨立 App 視窗體驗**：支援 Windows / Mac 桌面圖示與 iOS / Android 手機主畫面安裝。
 - **一鍵觸發安裝**：介面頂部與設定頁新增「📲 安裝 App」按鈕，點擊即可直接喚起瀏覽器原生安裝提示。
 - **離線快取支援**：配置 `sw.js` (Service Worker)，斷網狀態下亦可開啟應用程式存取本機庫存。
 
-### 2. 📊 ETF 基金淨值 (NAV) 與折溢價金額換算
+### 5. 📊 ETF 基金淨值 (NAV) 與折溢價金額換算
 - **即時折溢價試算**：新增/編輯 ETF 持股時填寫估計淨值 (NAV)，自動計算每股折溢價點數 (如 `+$0.50`) 與百分比 (`+0.29%`)。
 - **持股折溢價金額換算**：依據持股數量，自動換算全持股相當於多付或省下多少新台幣元（如 `持股溢價總額 +$2,500 元`）。
 - **專屬顏色徽章**：庫存卡牌項目以亮紅（溢價）與翡翠綠（折價）顯示提示區塊。
 
-### 3. 🔍 主動型 ETF (`00403A` / `00405A`) 與全上櫃標的對接
+### 6. 🔍 主動型 ETF (`00403A` / `00405A`) 與全上櫃標的對接
 - **雙重 API 報價對接**：同時對接 `TWSE` 證交所與 `TPEx` 櫃買中心公開 API，實時抓取上櫃股票與主動型 ETF 價格。
 - **預載與模糊比對**：預載包含 `00403A` (主動統一升級50)、`00405A` (主動富邦台灣龍耀) 等熱門主動型 ETF，支援不分大小寫比對（如輸入 `00403a`）。
 - **保底自訂新增**：輸入任意新掛牌或特殊代號，自動提供「點擊手動填價」選項，100% 無阻礙帶入。
 
-### 4. 🔗 點擊股票代號跳轉 Yahoo 股市 (Yahoo Finance)
+### 7. 🔗 點擊股票代號跳轉 Yahoo 股市 (Yahoo Finance)
 - **一鍵查 K 線與即時走勢**：點擊庫存卡牌標題或觀察清單旁的外連圖示 <i class="fa-solid fa-arrow-up-right-from-square"></i>，自動於新分頁開啟 Yahoo 股市對應行情頁面（如 `https://tw.stock.yahoo.com/quote/00403A.TW`）。
 
-### 5. 🤖 GitHub Actions 自動化 CI/CD 部署 (修復 404 / 空白網頁)
+### 8. 🤖 GitHub Actions 自動化 CI/CD 部署 (修復 404 / 空白網頁)
 - **自動化 Build & Deploy**：內建 `.github/workflows/deploy.yml`。推送程式碼至 `main` 分支時，GitHub Actions 會自動完成 `npm run build` 並部署至 GitHub Pages，徹底避免舊版純靜態伺服器讀取未編譯 `.tsx` 導致的 404 與空白網頁問題。
-
-### 6. 🧮 對話框遮檔修復 (Z-Index Stacking Layering Fix)
-- 將交易類型選擇視窗 (`TradeTypeModal`) 層級設為 `z-[60]`，擺脫以往在新增庫存彈窗 (`z-50`) 中點擊時被遮檔點不到的問題。
 
 ---
 
@@ -53,10 +60,10 @@
 - **前端框架**：React 18 (TypeScript)
 - **構建工具**：Vite 5
 - **狀態管理**：Zustand 4 (Atomic 輕量狀態訂閱，60fps 不卡頓)
-- **本機資料庫**：Dexie.js 4 (IndexedDB)
+- **本機資料庫**：Dexie.js 4 (IndexedDB) + LocalStorage (快取與指數持久化)
 - **UI 與 CSS**：Tailwind CSS 3 + FontAwesome 6 Icons
 - **PWA 支援**：Web App Manifest + Service Worker (`sw.js`)
-- **數據源**：TWSE 台灣證券交易所與 TPEx 櫃買中心 OpenAPI
+- **數據源**：TWSE 證交所 / TPEx 櫃買中心 OpenAPI + Yahoo Finance API
 
 ---
 
@@ -82,23 +89,26 @@ stock-cal/
 │   ├── utils/
 │   │   └── stockMath.ts        # 交易計算、手續費、折溢價純函數
 │   ├── services/
-│   │   └── twseApi.ts          # TWSE/TPEx OpenAPI 雙數據源對接
+│   │   ├── twseApi.ts          # TWSE/TPEx OpenAPI 雙數據源對接
+│   │   └── marketIndices.ts    # 國際四大指數與即時/盤後狀態抓取
 │   ├── db/
-│   │   └── stockDb.ts          # Dexie.js IndexedDB 本機資料庫
+│   │   ├── stockDb.ts          # Dexie.js IndexedDB 本機資料庫
+│   │   └── stockDictionary.ts  # 台股與主動型 ETF 字典庫
 │   ├── store/
-│   │   └── useStockStore.ts    # Zustand 全域狀態與 PWA Prompt
+│   │   └── useStockStore.ts    # Zustand 全域狀態、指數持久化與 PWA Prompt
 │   ├── components/
 │   │   ├── Header.tsx          # 頂部帳戶切換與 PWA 安裝鈕
 │   │   ├── HoldingsTab.tsx     # 庫存管理與 ETF 折溢價卡片
-│   │   ├── CalculatorTab.tsx   # 即時成交試算
+│   │   ├── CalculatorTab.tsx   # 即時成交試算與一鍵轉庫存
 │   │   ├── HistoryTab.tsx      # 歷史平倉紀錄與勝率
-│   │   ├── MarketTab.tsx       # 熱門觀察清單與外連
+│   │   ├── MarketTab.tsx       # 熱門觀察清單與國際指數速覽
 │   │   ├── SettingsTab.tsx     # 折數設定、PWA 安裝與 JSON 備份
 │   │   └── modals/
 │   │       ├── AddHoldingModal.tsx    # 新增庫存 (z-50)
 │   │       ├── TradeTypeModal.tsx     # 交易類型選單 (z-[60])
 │   │       ├── ProfitSummaryModal.tsx # 獲利試算彈窗
 │   │       ├── SellModal.tsx          # 平倉賣出彈窗
+│   │       ├── EditHistoryModal.tsx   # 編輯歷史交易紀錄彈窗
 │   │       └── AccountModal.tsx       # 帳戶切換彈窗
 │   ├── App.tsx                 # 主應用組件與 SW 註冊
 │   ├── main.tsx                # 入口檔案
@@ -126,7 +136,7 @@ npm run dev
 
 ```bash
 git add .
-git commit -m "feat: Add PWA desktop support and ETF NAV discount calculations"
+git commit -m "feat: Synchronize README with latest global indices persistence and calc-to-holding features"
 git push origin main
 ```
 
