@@ -17,11 +17,12 @@ import { calcTradeDetails } from '../utils/stockMath';
 import { checkTradingHours, fetchQuotesByProvider, fetchSingleYahooQuote, fetchTwseOpenApiQuotes } from '../services/twseApi';
 import { initialStockDictionary } from '../db/stockDictionary';
 import { GlobalIndexQuote, initialGlobalIndices } from '../services/marketIndices';
+import { parseShareText } from '../utils/shareUtils';
 
 interface StockStore {
   // Navigation & Modals
-  activeTab: 'holdings' | 'calculator' | 'history' | 'market' | 'settings';
-  setActiveTab: (tab: 'holdings' | 'calculator' | 'history' | 'market' | 'settings') => void;
+  activeTab: 'holdings' | 'calculator' | 'history' | 'market' | 'settings' | 'guide';
+  setActiveTab: (tab: 'holdings' | 'calculator' | 'history' | 'market' | 'settings' | 'guide') => void;
 
   themeMode: 'dark' | 'light';
   setThemeMode: (mode: 'dark' | 'light') => void;
@@ -58,6 +59,15 @@ interface StockStore {
   updateHistoryItem: (item: HistoryItem) => void;
   deleteHistoryItem: (id: string) => void;
 
+  // Share & Import Modals
+  showShareModal: boolean;
+  setShowShareModal: (val: boolean) => void;
+  shareTargetItem: HoldingItem | null;
+  openShareModal: (item?: HoldingItem | null) => void;
+
+  showTransferModal: boolean;
+  setShowTransferModal: (val: boolean) => void;
+
   // PWA Installation
   deferredPrompt: any;
   canInstallPwa: boolean;
@@ -68,6 +78,9 @@ interface StockStore {
   accounts: Account[];
   currentAccountId: string;
   setCurrentAccountId: (id: string) => void;
+  updateAccountName: (id: string, name: string) => void;
+  importShareText: (text: string) => { success: boolean; count: number; message?: string };
+  transferTempHoldings: (targetAccountId: string) => void;
 
   holdingsData: Record<string, HoldingItem[]>;
   historyData: Record<string, HistoryItem[]>;
@@ -233,6 +246,14 @@ export const useStockStore = create<StockStore>((set, get) => ({
     }
   },
 
+  showShareModal: false,
+  setShowShareModal: (val) => set({ showShareModal: val }),
+  shareTargetItem: null,
+  openShareModal: (item = null) => set({ shareTargetItem: item, showShareModal: true }),
+
+  showTransferModal: false,
+  setShowTransferModal: (val) => set({ showTransferModal: val }),
+
   deferredPrompt: null,
   canInstallPwa: false,
   setDeferredPrompt: (promptEvent) => set({ deferredPrompt: promptEvent, canInstallPwa: !!promptEvent }),
@@ -254,12 +275,104 @@ export const useStockStore = create<StockStore>((set, get) => ({
     { id: 'acc-2', name: '帳戶-2' },
     { id: 'acc-3', name: '帳戶-3' },
     { id: 'acc-4', name: '帳戶-4' },
-    { id: 'acc-5', name: '帳戶-5' }
+    { id: 'acc-5', name: '帳戶-5' },
+    { id: 'acc-temp', name: '臨時帳戶' }
   ],
   currentAccountId: 'acc-1',
   setCurrentAccountId: (id) => {
     set({ currentAccountId: id, showAccountModal: false });
     get().saveToStorage();
+  },
+  updateAccountName: (id: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const updated = get().accounts.map(acc => acc.id === id ? { ...acc, name: trimmed } : acc);
+    set({ accounts: updated });
+    get().saveToStorage();
+  },
+
+  importShareText: (text: string) => {
+    const parsedItems = parseShareText(text);
+    if (parsedItems.length === 0) {
+      return { success: false, count: 0, message: '未識別出有效的庫存文字，請確認格式（例如：股票代號：2330...）' };
+    }
+
+    const holdings = { ...get().holdingsData };
+    if (!holdings['acc-temp']) holdings['acc-temp'] = [];
+
+    const map = get().fullStockMap;
+    let addedCount = 0;
+    const nowStr = new Date().toISOString().split('T')[0];
+
+    for (const item of parsedItems) {
+      let sym = item.symbol || '';
+      let nm = item.name || sym;
+
+      if (sym && map[sym]) {
+        nm = map[sym].name || nm;
+      }
+
+      const curP = map[sym]?.price || item.buyPrice || 0;
+
+      const newItem: HoldingItem = {
+        id: 'h-temp-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+        symbol: sym,
+        name: nm,
+        buyPrice: item.buyPrice || curP,
+        currentPrice: curP,
+        shares: item.shares || 1000,
+        discount: item.discount !== undefined ? item.discount : get().globalDiscount,
+        assetType: sym.startsWith('00') ? 'ETF' : '股票',
+        tradeType: '多-現股交易',
+        date: item.date || nowStr,
+        minFee: 20
+      };
+
+      holdings['acc-temp'].push(newItem);
+      addedCount++;
+    }
+
+    set({
+      holdingsData: holdings,
+      currentAccountId: 'acc-temp',
+      showShareModal: false
+    });
+
+    get().saveToStorage();
+    get().setToastMessage(`已將 ${addedCount} 筆庫存匯入至【臨時帳戶】！`);
+    setTimeout(() => get().setToastMessage(null), 3500);
+
+    return { success: true, count: addedCount };
+  },
+
+  transferTempHoldings: (targetAccountId: string) => {
+    const holdings = { ...get().holdingsData };
+    const tempItems = holdings['acc-temp'] || [];
+    if (tempItems.length === 0) return;
+
+    if (!holdings[targetAccountId]) holdings[targetAccountId] = [];
+
+    const targetAccount = get().accounts.find(a => a.id === targetAccountId);
+    const targetName = targetAccount ? targetAccount.name : targetAccountId;
+
+    tempItems.forEach(item => {
+      holdings[targetAccountId].push({
+        ...item,
+        id: 'h-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4)
+      });
+    });
+
+    holdings['acc-temp'] = [];
+
+    set({
+      holdingsData: holdings,
+      currentAccountId: targetAccountId,
+      showTransferModal: false
+    });
+
+    get().saveToStorage();
+    get().setToastMessage(`已一鍵將庫存轉存至【${targetName}】！`);
+    setTimeout(() => get().setToastMessage(null), 3500);
   },
 
   holdingsData: {},
@@ -1066,11 +1179,16 @@ export const useStockStore = create<StockStore>((set, get) => ({
     try {
       const holdings = parsed.holdings || {};
       const history = parsed.history || {};
+      let accounts: Account[] = parsed.accounts && Array.isArray(parsed.accounts) ? parsed.accounts : get().accounts;
+      if (!accounts.some(a => a.id === 'acc-temp')) {
+        accounts.push({ id: 'acc-temp', name: '臨時帳戶' });
+      }
       const discount = parsed.discount !== undefined ? parsed.discount : get().globalDiscount;
       const limit = parsed.limit !== undefined ? parsed.limit : get().accountLimitInput;
       const theme = parsed.themeMode || 'dark';
       const provider = parsed.apiProvider || 'yahoo';
       set({
+        accounts,
         holdingsData: holdings,
         historyData: history,
         globalDiscount: discount,
@@ -1099,7 +1217,12 @@ export const useStockStore = create<StockStore>((set, get) => ({
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
+        let loadedAccounts: Account[] = parsed.accounts || get().accounts;
+        if (!loadedAccounts.some(a => a.id === 'acc-temp')) {
+          loadedAccounts.push({ id: 'acc-temp', name: '臨時帳戶' });
+        }
         set({
+          accounts: loadedAccounts,
           holdingsData: parsed.holdings || {},
           historyData: parsed.history || {},
           globalDiscount: parsed.discount !== undefined ? parsed.discount : 0.38,
@@ -1206,6 +1329,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
     localStorage.setItem('tw_stock_app_data', JSON.stringify({
       holdings: get().holdingsData,
       history: get().historyData,
+      accounts: get().accounts,
       discount: get().globalDiscount,
       limit: get().accountLimitInput,
       themeMode: get().themeMode,

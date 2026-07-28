@@ -6,12 +6,15 @@ import { CalculatorTab } from './components/CalculatorTab';
 import { HistoryTab } from './components/HistoryTab';
 import { MarketTab } from './components/MarketTab';
 import { SettingsTab } from './components/SettingsTab';
+import { GuideTab } from './components/GuideTab';
 import { AddHoldingModal } from './components/modals/AddHoldingModal';
 import { TradeTypeModal } from './components/modals/TradeTypeModal';
 import { ProfitSummaryModal } from './components/modals/ProfitSummaryModal';
 import { SellModal } from './components/modals/SellModal';
 import { AccountModal } from './components/modals/AccountModal';
 import { EditHistoryModal } from './components/modals/EditHistoryModal';
+import { ShareModal } from './components/modals/ShareModal';
+import { TransferTempModal } from './components/modals/TransferTempModal';
 
 export const App: React.FC = () => {
   const {
@@ -89,6 +92,7 @@ export const App: React.FC = () => {
         {activeTab === 'calculator' && <CalculatorTab />}
         {activeTab === 'history' && <HistoryTab />}
         {activeTab === 'market' && <MarketTab />}
+        {activeTab === 'guide' && <GuideTab />}
         {activeTab === 'settings' && <SettingsTab />}
       </main>
 
@@ -133,6 +137,15 @@ export const App: React.FC = () => {
           <span>指數</span>
         </button>
         <button
+          onClick={() => setActiveTab('guide')}
+          className={`flex-1 flex flex-col items-center space-y-1 ${
+            activeTab === 'guide' ? 'text-amber-500 font-bold' : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
+          }`}
+        >
+          <i className="fa-solid fa-graduation-cap text-base"></i>
+          <span>教學</span>
+        </button>
+        <button
           onClick={() => setActiveTab('settings')}
           className={`flex-1 flex flex-col items-center space-y-1 ${
             activeTab === 'settings' ? 'text-amber-500 font-bold' : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
@@ -150,6 +163,8 @@ export const App: React.FC = () => {
       <SellModal />
       <AccountModal />
       <EditHistoryModal />
+      <ShareModal />
+      <TransferTempModal />
     </div>
   );
 };

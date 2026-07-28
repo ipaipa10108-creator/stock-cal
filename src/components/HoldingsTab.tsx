@@ -29,11 +29,16 @@ export const HoldingsTab: React.FC = () => {
     togglePinHolding,
     moveHoldingOrder,
     themeMode,
-    holdingDisplaySettings
+    holdingDisplaySettings,
+    openShareModal,
+    setShowShareModal,
+    setShowTransferModal,
+    accounts
   } = useStockStore();
 
   const isLight = themeMode === 'light';
   const currentList = holdingsData[currentAccountId] || [];
+  const currentAccountName = accounts.find(a => a.id === currentAccountId)?.name || '目前帳戶';
 
   const computedHoldings: ComputedHolding[] = currentList.map((item) => {
     const isShort = item.tradeType && item.tradeType.startsWith('空');
@@ -102,13 +107,48 @@ export const HoldingsTab: React.FC = () => {
 
   return (
     <div className="space-y-3">
-      {/* 總筆數提示與分類篩選 */}
+      {/* 臨時帳戶橫幅提示 (當現為臨時帳戶時顯示) */}
+      {currentAccountId === 'acc-temp' && (
+        <div className={`p-3 rounded-xl border flex items-center justify-between shadow ${
+          isLight ? 'bg-purple-50 border-purple-200 text-purple-900' : 'bg-purple-950/40 border-purple-700/60 text-purple-200'
+        }`}>
+          <div className="flex items-center space-x-2 text-xs">
+            <i className="fa-solid fa-clock-rotate-left text-base text-purple-400"></i>
+            <div>
+              <div className="font-extrabold text-sm">【臨時帳戶】({currentList.length} 筆匯入資料)</div>
+              <div className="opacity-80 text-[11px]">來自文字分享匯入，可隨時一鍵轉存至正式帳戶</div>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowTransferModal(true)}
+            disabled={currentList.length === 0}
+            className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-50 text-white font-extrabold rounded-lg text-xs shadow flex items-center space-x-1"
+          >
+            <i className="fa-solid fa-right-left"></i>
+            <span>一鍵轉存帳戶</span>
+          </button>
+        </div>
+      )}
+
+      {/* 總筆數提示與分享/匯入按鈕 */}
       <div className="flex items-center justify-between text-xs px-1 font-bold">
         <span className={isLight ? 'text-slate-600' : 'text-slate-300'}>
           <i className="fa-solid fa-layer-group text-blue-500 mr-1.5"></i>
-          庫存筆記 (顯示 {sortedList.length} 筆 / 共 {currentList.length} 筆資料)
+          [{currentAccountName}] 筆記 (顯示 {sortedList.length} 筆 / 共 {currentList.length} 筆)
           {pinnedItems.length > 0 && <span className="ml-2 text-amber-500 font-extrabold">📌 {pinnedItems.length} 筆置頂</span>}
         </span>
+
+        {/* 上方右側：分享與匯入快捷按鈕 */}
+        <div className="flex space-x-1.5">
+          <button
+            onClick={() => openShareModal(null)}
+            className="px-2 py-1 bg-amber-500/20 text-amber-500 border border-amber-500/40 hover:bg-amber-500/30 rounded-md text-[11px] font-bold transition flex items-center space-x-1"
+            title="分享或匯入文字版庫存"
+          >
+            <i className="fa-solid fa-share-nodes"></i>
+            <span>分享/匯入</span>
+          </button>
+        </div>
       </div>
 
       {/* 分類與排序列 */}
@@ -149,12 +189,21 @@ export const HoldingsTab: React.FC = () => {
         <div className={`text-center py-12 space-y-3 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
           <i className="fa-solid fa-folder-open text-4xl text-slate-400"></i>
           <p className="text-sm font-semibold">目前此分類下無庫存股票</p>
-          <button
-            onClick={openAddModal}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg shadow transition"
-          >
-            + 新增第一筆庫存
-          </button>
+          <div className="flex justify-center space-x-2">
+            <button
+              onClick={openAddModal}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg shadow transition"
+            >
+              + 新增第一筆庫存
+            </button>
+            <button
+              onClick={() => openShareModal(null)}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg shadow transition"
+            >
+              <i className="fa-solid fa-file-import mr-1"></i>
+              匯入分享文字
+            </button>
+          </div>
         </div>
       ) : (
         <div className="space-y-2.5">
@@ -385,6 +434,15 @@ export const HoldingsTab: React.FC = () => {
                   ) : <div />}
 
                   <div className="flex space-x-2">
+                    <button
+                      onClick={() => openShareModal(item)}
+                      title="分享此筆個股文字"
+                      className={`px-2 py-1 rounded transition ${
+                        isLight ? 'bg-slate-100 hover:bg-slate-200 text-amber-700' : 'bg-slate-700 hover:bg-slate-600 text-amber-400'
+                      }`}
+                    >
+                      <i className="fa-solid fa-share-nodes"></i>
+                    </button>
                     <button
                       onClick={() => openSellModal(item)}
                       className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded flex items-center space-x-1 shadow-sm transition"

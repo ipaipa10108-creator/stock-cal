@@ -20,7 +20,8 @@ export const TradeTypeModal: React.FC = () => {
     calcForm,
     setCalcForm,
     holdingForm,
-    setHoldingForm
+    setHoldingForm,
+    setActiveTab
   } = useStockStore();
 
   if (!showTradeTypeModal) return null;
@@ -34,6 +35,11 @@ export const TradeTypeModal: React.FC = () => {
       setHoldingForm({ tradeType: option });
     }
     setShowTradeTypeModal(false);
+  };
+
+  const handleOpenGuide = () => {
+    setShowTradeTypeModal(false);
+    setActiveTab('guide');
   };
 
   return (
@@ -61,6 +67,16 @@ export const TradeTypeModal: React.FC = () => {
               </div>
             </label>
           ))}
+        </div>
+        <div className="p-2.5 border-t border-slate-100 bg-slate-50 text-center">
+          <button
+            type="button"
+            onClick={handleOpenGuide}
+            className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center justify-center space-x-1 w-full py-1"
+          >
+            <i className="fa-solid fa-graduation-cap"></i>
+            <span>💡 不確定如何選擇？查看交易類型教學</span>
+          </button>
         </div>
       </div>
     </div>
