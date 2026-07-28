@@ -28,7 +28,8 @@ export const HoldingsTab: React.FC = () => {
     splitMergedHolding,
     togglePinHolding,
     moveHoldingOrder,
-    themeMode
+    themeMode,
+    holdingDisplaySettings
   } = useStockStore();
 
   const isLight = themeMode === 'light';
@@ -241,31 +242,52 @@ export const HoldingsTab: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 檔位位置提示區塊 */}
-                <div className={`mt-2 p-1.5 rounded-lg text-xs flex items-center justify-between font-bold border ${
-                  isLoss
-                    ? (isLight ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-rose-950/40 border-rose-800/50 text-rose-300')
-                    : (isLight ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-emerald-950/40 border-emerald-800/50 text-emerald-300')
-                }`}>
-                  <div className="flex items-center space-x-1.5">
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded border font-extrabold ${
-                      isLoss ? 'bg-rose-500 text-white border-rose-600' : 'bg-emerald-500 text-white border-emerald-600'
+                {/* 檔位位置與保本價提示區塊 */}
+                {(holdingDisplaySettings.showTickInfo || holdingDisplaySettings.showBreakEvenPrice) && (
+                  <div className={`mt-2 p-1.5 rounded-lg text-xs flex items-center justify-between font-bold border ${
+                    isLoss
+                      ? (isLight ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-rose-950/40 border-rose-800/50 text-rose-300')
+                      : (isLight ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-emerald-950/40 border-emerald-800/50 text-emerald-300')
+                  }`}>
+                    {holdingDisplaySettings.showTickInfo ? (
+                      <div className="flex items-center space-x-1.5">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded border font-extrabold ${
+                          isLoss ? 'bg-rose-500 text-white border-rose-600' : 'bg-emerald-500 text-white border-emerald-600'
+                        }`}>
+                          {isLoss ? '距離賺錢' : '持股位置'}
+                        </span>
+                        <span className="text-xs">
+                          {isLoss
+                            ? `距離保本打平還差上漲 ${ticks} 檔`
+                            : `目前已經賺了 ${ticks} 檔`}
+                        </span>
+                      </div>
+                    ) : <div />}
+                    {holdingDisplaySettings.showBreakEvenPrice && (
+                      <div className={`text-[11px] font-semibold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                        保本價: <strong className="underline">${breakEven.toFixed(2)}</strong>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 預估賣出手續費與證交稅明細 */}
+                {holdingDisplaySettings.showFeeTaxDetails && (() => {
+                  const sellDetails = calcTradeDetails(item.currentPrice, item.shares, disc, item.minFee || 20, false, item.assetType, item.tradeType, globalDiscount);
+                  return (
+                    <div className={`mt-1.5 px-2 py-1 rounded text-[11px] flex justify-between font-medium border ${
+                      isLight ? 'bg-slate-50 border-slate-200 text-slate-600' : 'bg-slate-900/60 border-slate-700/60 text-slate-400'
                     }`}>
-                      {isLoss ? '距離賺錢' : '持股位置'}
-                    </span>
-                    <span className="text-xs">
-                      {isLoss
-                        ? `距離保本打平還差上漲 ${ticks} 檔`
-                        : `目前已經賺了 ${ticks} 檔`}
-                    </span>
-                  </div>
-                  <div className={`text-[11px] font-semibold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                    保本價: <strong className="underline">${breakEven.toFixed(2)}</strong>
-                  </div>
-                </div>
+                      <span>預估賣出交易費用：</span>
+                      <span>
+                        手續費 <strong>${formatNum(sellDetails.fee)}</strong> + 證交稅 <strong>${formatNum(sellDetails.tax)}</strong> = 總費用 <strong>${formatNum(sellDetails.fee + sellDetails.tax)}</strong> 元
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 {/* 合併明細與拆回按鈕區塊 */}
-                {item.lots && item.lots.length > 1 && (
+                {holdingDisplaySettings.showLotDetails && item.lots && item.lots.length > 1 && (
                   <div className={`mt-2 p-2 rounded-lg text-xs border space-y-1.5 ${
                     isLight ? 'bg-blue-50 border-blue-200 text-blue-900' : 'bg-slate-900/90 border-blue-500/40 text-blue-200'
                   }`}>
@@ -294,7 +316,7 @@ export const HoldingsTab: React.FC = () => {
                 )}
 
                 {/* ETF 專屬當下折溢價提示區塊 */}
-                {(() => {
+                {holdingDisplaySettings.showEtfDiscount && (() => {
                   const isEtf = item.assetType === 'ETF' || item.symbol.startsWith('00') || item.nav !== undefined;
                   if (!isEtf) return null;
 

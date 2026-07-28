@@ -17,7 +17,9 @@ export const SettingsTab: React.FC = () => {
     themeMode,
     setThemeMode,
     apiProvider,
-    setApiProvider
+    setApiProvider,
+    holdingDisplaySettings,
+    setHoldingDisplaySettings
   } = useStockStore();
 
   const isLight = themeMode === 'light';
@@ -104,6 +106,57 @@ export const SettingsTab: React.FC = () => {
                   <span className="text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded font-black shadow-xs">使用中</span>
                 )}
               </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 庫存卡片自訂顯示項目勾選區 */}
+        <div className={`p-3 rounded-xl border space-y-2 ${
+          isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/80 border-slate-700'
+        }`}>
+          <div className="flex items-center space-x-2">
+            <i className="fa-solid fa-sliders text-blue-500"></i>
+            <label className={`text-xs font-bold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
+              庫存卡片顯示項目自訂勾選
+            </label>
+          </div>
+          <p className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+            可依使用習慣勾選隱藏或顯示庫存清單卡片上的資訊模組：
+          </p>
+          <div className="space-y-2 pt-1">
+            {[
+              { key: 'showTickInfo', title: '價差幾檔資訊', desc: '距離保本打平還差幾檔升降單位，或目前已獲利幾檔檔位' },
+              { key: 'showEtfDiscount', title: 'ETF 折溢價資訊', desc: '基金即時淨值 (NAV)、單股折溢價金額與持股折溢價總額' },
+              { key: 'showBreakEvenPrice', title: '保本價資訊', desc: '考慮買賣雙邊手續費與證交稅後的損益打平參考價格' },
+              { key: 'showFeeTaxDetails', title: '預估賣出交易費用與稅額', desc: '賣出時預估扣除之券商手續費與證券交易稅金額明細' },
+              { key: 'showLotDetails', title: '加權合併筆記明細', desc: '加權合併筆記之各筆買進日期、股數明細與拆回獨立筆記按鈕' },
+            ].map(item => (
+              <label
+                key={item.key}
+                className={`p-2.5 rounded-lg border cursor-pointer flex items-center justify-between transition ${
+                  (holdingDisplaySettings as any)[item.key]
+                    ? (isLight ? 'bg-blue-50/80 border-blue-300 text-blue-900 font-bold' : 'bg-blue-950/40 border-blue-500/50 text-white font-bold')
+                    : (isLight ? 'bg-white border-slate-200 text-slate-400' : 'bg-slate-800/40 border-slate-700/60 text-slate-400')
+                }`}
+              >
+                <div className="flex-1 mr-2">
+                  <div className="text-xs font-bold flex items-center space-x-2">
+                    <i className={`fa-solid ${
+                      (holdingDisplaySettings as any)[item.key] ? 'fa-square-check text-blue-500' : 'fa-square text-slate-400 text-[11px]'
+                    }`}></i>
+                    <span>{item.title}</span>
+                  </div>
+                  <div className={`text-[10px] mt-0.5 ml-5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                    {item.desc}
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={!!(holdingDisplaySettings as any)[item.key]}
+                  onChange={(e) => setHoldingDisplaySettings({ [item.key]: e.target.checked })}
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 accent-blue-600"
+                />
+              </label>
             ))}
           </div>
         </div>

@@ -10,7 +10,8 @@ import {
   CalcFormState,
   ComputedHolding,
   ApiProvider,
-  HoldingLot
+  HoldingLot,
+  HoldingDisplaySettings
 } from '../types/stock';
 import { calcTradeDetails } from '../utils/stockMath';
 import { checkTradingHours, fetchQuotesByProvider, fetchSingleYahooQuote, fetchTwseOpenApiQuotes } from '../services/twseApi';
@@ -28,6 +29,9 @@ interface StockStore {
 
   apiProvider: ApiProvider;
   setApiProvider: (provider: ApiProvider) => void;
+
+  holdingDisplaySettings: HoldingDisplaySettings;
+  setHoldingDisplaySettings: (settings: Partial<HoldingDisplaySettings>) => void;
 
   toastMessage: string | null;
   setToastMessage: (msg: string | null) => void;
@@ -163,6 +167,20 @@ export const useStockStore = create<StockStore>((set, get) => ({
     set({ apiProvider: provider });
     get().saveToStorage();
     get().refreshPrices(true);
+  },
+
+  holdingDisplaySettings: {
+    showTickInfo: true,
+    showEtfDiscount: true,
+    showBreakEvenPrice: true,
+    showFeeTaxDetails: true,
+    showLotDetails: true
+  },
+  setHoldingDisplaySettings: (settings) => {
+    set((state) => ({
+      holdingDisplaySettings: { ...state.holdingDisplaySettings, ...settings }
+    }));
+    get().saveToStorage();
   },
 
   toastMessage: null,
@@ -1088,6 +1106,20 @@ export const useStockStore = create<StockStore>((set, get) => ({
           accountLimitInput: parsed.limit || null,
           themeMode: parsed.themeMode || 'dark',
           apiProvider: parsed.apiProvider || 'yahoo',
+          holdingDisplaySettings: parsed.holdingDisplaySettings ? {
+            showTickInfo: true,
+            showEtfDiscount: true,
+            showBreakEvenPrice: true,
+            showFeeTaxDetails: true,
+            showLotDetails: true,
+            ...parsed.holdingDisplaySettings
+          } : {
+            showTickInfo: true,
+            showEtfDiscount: true,
+            showBreakEvenPrice: true,
+            showFeeTaxDetails: true,
+            showLotDetails: true
+          },
           globalIndicesData: parsed.indices && parsed.indices.length > 0 ? parsed.indices : initialGlobalIndices,
           indicesLastUpdated: parsed.indicesLastUpdated || ''
         });
@@ -1102,6 +1134,13 @@ export const useStockStore = create<StockStore>((set, get) => ({
       apiProvider: 'yahoo',
       globalIndicesData: initialGlobalIndices,
       indicesLastUpdated: '',
+      holdingDisplaySettings: {
+        showTickInfo: true,
+        showEtfDiscount: true,
+        showBreakEvenPrice: true,
+        showFeeTaxDetails: true,
+        showLotDetails: true
+      },
       holdingsData: {
         'acc-1': [
           {
@@ -1171,6 +1210,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
       limit: get().accountLimitInput,
       themeMode: get().themeMode,
       apiProvider: get().apiProvider,
+      holdingDisplaySettings: get().holdingDisplaySettings,
       indices: get().globalIndicesData,
       indicesLastUpdated: get().indicesLastUpdated
     }));

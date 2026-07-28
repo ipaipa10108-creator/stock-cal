@@ -108,3 +108,11 @@ export interface HoldingFormState {
   pinned?: boolean;
   orderIndex?: number;
 }
+
+export interface HoldingDisplaySettings {
+  showTickInfo: boolean;          // 價差幾檔資訊 (距離保本/獲利檔位數)
+  showEtfDiscount: boolean;       // ETF 折溢價資訊 (預估淨值與折溢價差額)
+  showBreakEvenPrice: boolean;    // 保本價 (保本參考價格)
+  showFeeTaxDetails: boolean;     // 預估交易費用 (賣出手續費與證交稅)
+  showLotDetails: boolean;        // 合併筆記明細 (批次買進明細)
+}
