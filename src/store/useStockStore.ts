@@ -482,15 +482,6 @@ export const useStockStore = create<StockStore>((set, get) => ({
       });
     }
   },
-          name: chineseName,
-          symbolSearch: `${stk.code} - ${chineseName}`,
-          currentPrice: live.price,
-          buyPrice: (!curF.buyPrice || curF.buyPrice === 0) ? live.price : curF.buyPrice
-        },
-        fullStockMap: { ...get().fullStockMap, [stk.code]: updatedQuote }
-      });
-    }
-  },
 
   // Calculator Form
   calcForm: {
@@ -1024,6 +1015,15 @@ export const useStockStore = create<StockStore>((set, get) => ({
   },
 
   loadFromStorage: () => {
+    // Background preload full TWSE/TPEx stock dictionary (~2000+ stocks & ETFs with Chinese names)
+    fetchTwseOpenApiQuotes().then(openApiMap => {
+      if (openApiMap) {
+        set(state => ({
+          fullStockMap: { ...state.fullStockMap, ...openApiMap }
+        }));
+      }
+    }).catch(() => {});
+
     const saved = localStorage.getItem('tw_stock_app_data');
     if (saved) {
       try {
