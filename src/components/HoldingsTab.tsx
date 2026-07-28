@@ -298,25 +298,9 @@ export const HoldingsTab: React.FC = () => {
                   const isEtf = item.assetType === 'ETF' || item.symbol.startsWith('00') || item.nav !== undefined;
                   if (!isEtf) return null;
 
-                  const pd = calcEtfPremiumDiscount(item.currentPrice, item.nav, item.shares);
-                  if (!pd) {
-                    return (
-                      <div className={`mt-2 p-1.5 rounded-lg text-xs border flex items-center justify-between ${
-                        isLight ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-slate-900 border-amber-500/40 text-amber-300'
-                      }`}>
-                        <div className="flex items-center space-x-1.5">
-                          <i className="fa-solid fa-chart-pie text-amber-500"></i>
-                          <span className="font-semibold text-[11px]">ETF 折溢價：尚未輸入估算淨值 (NAV)</span>
-                        </div>
-                        <button
-                          onClick={() => openEditModal(item)}
-                          className="text-[10px] px-2 py-0.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded shadow-sm"
-                        >
-                          填寫淨值
-                        </button>
-                      </div>
-                    );
-                  }
+                  const activeNav = item.nav && item.nav > 0 ? item.nav : item.currentPrice;
+                  const pd = calcEtfPremiumDiscount(item.currentPrice, activeNav, item.shares);
+                  if (!pd) return null;
 
                   return (
                     <div
@@ -327,13 +311,16 @@ export const HoldingsTab: React.FC = () => {
                       }`}
                     >
                       <div className="flex items-center space-x-1.5">
-                        <span className={`text-[10px] font-bold px-1 rounded border ${
+                        <span className="text-[10px] font-bold px-1 py-0.5 rounded border bg-emerald-50 text-emerald-700 border-emerald-300">
+                          🟢 即時估算
+                        </span>
+                        <span className={`text-[10px] font-bold px-1 py-0.5 rounded border ${
                           isLight ? 'bg-white border-slate-300 text-slate-800' : 'bg-slate-900/60 border-slate-700 text-slate-200'
                         }`}>
                           ETF 折溢價
                         </span>
                         <span>
-                          當前市價 ${item.currentPrice.toFixed(2)} (淨值 ${item.nav?.toFixed(2)}) ➔{' '}
+                          市價 ${item.currentPrice.toFixed(2)} (淨值 ${activeNav.toFixed(2)}) ➔{' '}
                           <strong>{pd.isPremium ? '溢價' : '折價'} ${Math.abs(pd.diffPerShare).toFixed(2)}</strong> (
                           {pd.isPremium ? '+' : ''}{pd.diffPct.toFixed(2)}%)
                         </span>

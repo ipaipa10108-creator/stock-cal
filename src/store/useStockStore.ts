@@ -493,6 +493,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
     const f = get().holdingForm;
     const chineseName = get().fullStockMap[stk.code]?.name || stk.name;
     const isEtf = stk.code.startsWith('00') || stk.type === 'ETF';
+    const initialNav = stk.nav !== undefined ? stk.nav : get().fullStockMap[stk.code]?.nav;
 
     set({
       holdingForm: {
@@ -503,7 +504,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
         currentPrice: stk.price > 0 ? stk.price : f.currentPrice,
         buyPrice: (!f.buyPrice || f.buyPrice === 0) ? (stk.price > 0 ? stk.price : 0) : f.buyPrice,
         assetType: isEtf ? 'ETF' : '股票',
-        nav: stk.nav !== undefined ? stk.nav : f.nav
+        nav: isEtf ? (initialNav !== undefined ? initialNav : (stk.price > 0 ? stk.price : f.nav)) : undefined
       },
       addSearchResults: []
     });
@@ -521,7 +522,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
           symbolSearch: `${live.code} - ${updatedName}`,
           currentPrice: live.price,
           buyPrice: (!curF.buyPrice || curF.buyPrice === 0) ? live.price : curF.buyPrice,
-          nav: live.nav !== undefined ? live.nav : curF.nav,
+          nav: isEtf ? (live.nav !== undefined ? live.nav : live.price) : undefined,
           assetType: isEtf ? 'ETF' : '股票'
         },
         fullStockMap: { ...get().fullStockMap, [live.code]: updatedQuote }
@@ -950,13 +951,19 @@ export const useStockStore = create<StockStore>((set, get) => ({
       tradeType: f.tradeType
     };
 
+    const isEtfType = f.assetType === 'ETF' || symbol.startsWith('00');
+    const computedNav = f.nav !== undefined && f.nav > 0 
+      ? f.nav 
+      : (map[symbol]?.nav || (curPrice || buyPrice || 0));
+
     const itemToSave: HoldingItem = {
       ...f,
       symbol,
       name,
       buyPrice: buyPrice || 0,
       currentPrice: curPrice || 0,
-      assetType: f.assetType || (symbol.startsWith('00') ? 'ETF' : '股票'),
+      assetType: isEtfType ? 'ETF' : '股票',
+      nav: isEtfType ? computedNav : undefined,
       lots: f.lots || [defaultLot]
     };
 

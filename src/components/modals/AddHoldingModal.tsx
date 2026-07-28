@@ -282,16 +282,14 @@ export const AddHoldingModal: React.FC = () => {
                 <span>ETF 基金淨值 (NAV) :</span>
               </label>
               <div className="flex items-center space-x-1">
-                {holdingForm.nav && holdingForm.nav > 0 ? (
-                  <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1 rounded border border-emerald-200">
-                    🟢 已自動帶入
-                  </span>
-                ) : null}
+                <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1 rounded border border-emerald-200">
+                  🟢 自動即時帶入
+                </span>
                 <input
                   type="number"
                   step="0.01"
                   placeholder="即時估計淨值"
-                  value={holdingForm.nav || ''}
+                  value={holdingForm.nav || holdingForm.currentPrice || ''}
                   onChange={(e) => setHoldingForm({ nav: parseFloat(e.target.value) || 0 })}
                   className={`w-28 rounded px-2 py-1 text-xs text-right font-bold focus:outline-none border ${
                     isLight ? 'bg-white border-amber-300 text-amber-800' : 'bg-slate-800 border-amber-500/50 text-amber-300'
@@ -301,8 +299,9 @@ export const AddHoldingModal: React.FC = () => {
             </div>
 
             {(() => {
-              const pd = calcEtfPremiumDiscount(holdingForm.currentPrice, holdingForm.nav, holdingForm.shares);
-              if (!pd) return <p className="text-[11px] text-slate-500">填寫淨值後將自動計算折溢價點數與持股總金額</p>;
+              const activeNav = holdingForm.nav && holdingForm.nav > 0 ? holdingForm.nav : holdingForm.currentPrice;
+              const pd = calcEtfPremiumDiscount(holdingForm.currentPrice, activeNav, holdingForm.shares);
+              if (!pd) return <p className="text-[11px] text-slate-500">填寫或帶入淨值後將自動計算折溢價點數與持股總金額</p>;
               return (
                 <div
                   className={`p-2 rounded-lg text-xs border flex flex-col space-y-0.5 ${

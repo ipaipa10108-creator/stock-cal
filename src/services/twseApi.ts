@@ -67,7 +67,7 @@ let cachedEtfNavMap: Record<string, number> | null = null;
 let lastEtfNavFetchTime = 0;
 
 /**
- * Fetch Real-Time ETF NAV Map from TWSE OpenAPI & Yahoo Finance
+ * Fetch Real-Time ETF NAV Map from TWSE MIS API & Yahoo Finance
  */
 export const fetchEtfNavMap = async (): Promise<Record<string, number>> => {
   const now = Date.now();
@@ -76,28 +76,33 @@ export const fetchEtfNavMap = async (): Promise<Record<string, number>> => {
   }
 
   const result: Record<string, number> = {};
-  const etfNavUrls = [
-    '/api/twse/v1/exchangeReport/ETF_REALTIME_SETTLEMENT_PRICE',
-    'https://openapi.twse.com.tw/v1/exchangeReport/ETF_REALTIME_SETTLEMENT_PRICE'
+  const popularEtfs = [
+    '0050', '0056', '00878', '00919', '00929', '006208', '00713', '00940',
+    '00915', '00918', '00922', '00939', '00935', '00881', '00830', '00946',
+    '00679B', '00687B', '00937B', '00923', '00936', '00941', '00900'
   ];
 
-  for (const url of etfNavUrls) {
-    try {
-      const res = await fetchWithProxy(url);
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        data.forEach((stk: any) => {
-          const code = (stk.Code || stk.symbol || '').trim().toUpperCase().replace(/\.(TW|TWO)$/i, '');
-          const nav = cleanNum(stk.EstimatedNAV || stk.NAV || stk.Nav || stk.NetAssetValue || stk.nav);
-          if (code && nav > 0) {
-            result[code] = nav;
-          }
-        });
-        if (Object.keys(result).length > 0) break;
-      }
-    } catch (e) {
-      // Continue
+  try {
+    const channels = popularEtfs.map(sym => `tse_${sym}.tw`).join('|');
+    const targetUrl = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${channels}&_=${now}`;
+    const res = await fetchWithProxy(targetUrl);
+    const data = await res.json();
+    const msgArray = data?.msgArray;
+
+    if (Array.isArray(msgArray)) {
+      msgArray.forEach((stk: any) => {
+        const code = (stk.c || '').trim().toUpperCase().replace(/\.(TW|TWO)$/i, '');
+        const price = cleanNum(stk.z) || cleanNum(stk.y);
+        const estNav = cleanNum(stk.fv || stk.oa || stk.ob || stk.nav);
+        if (code && estNav > 0) {
+          result[code] = estNav;
+        } else if (code && price > 0) {
+          result[code] = price;
+        }
+      });
     }
+  } catch (e) {
+    // Continue
   }
 
   cachedEtfNavMap = result;
@@ -114,7 +119,7 @@ export const fetchSingleYahooQuote = async (code: string): Promise<StockQuote | 
   if (!cleanCode) return null;
 
   const dictName = initialStockDictionary[cleanCode]?.name;
-  const isEtf = cleanCode.startsWith('00');
+  const isEtf = cleanCode.startsWith('00') || dictName?.includes('ETF') || false;
 
   const suffixes = ['.TW', '.TWO'];
   for (const suf of suffixes) {
@@ -131,9 +136,13 @@ export const fetchSingleYahooQuote = async (code: string): Promise<StockQuote | 
 
         let nav = cleanNum(meta.navPrice || meta.netAssetValue);
 
-        if (isEtf && (!nav || nav <= 0)) {
+        if (isEtf) {
           const etfNavs = await fetchEtfNavMap();
-          if (etfNavs[cleanCode]) nav = etfNavs[cleanCode];
+          if (etfNavs[cleanCode] && etfNavs[cleanCode] > 0) {
+            nav = etfNavs[cleanCode];
+          } else if (!nav || nav <= 0) {
+            nav = price;
+          }
         }
 
         let name = dictName;
@@ -162,7 +171,7 @@ export const fetchSingleYahooQuote = async (code: string): Promise<StockQuote | 
           change,
           changePct,
           type: isEtf ? 'ETF' : '股票',
-          nav: nav > 0 ? nav : undefined
+          nav: isEtf ? (nav && nav > 0 ? nav : price) : undefined
         };
       }
     } catch (e) {
@@ -221,7 +230,7 @@ export const fetchTwseMisQuotesBatch = async (symbols: string[]): Promise<Record
           const change = parseFloat((price - prevClose).toFixed(2));
           const changePct = prevClose > 0 ? parseFloat(((change / prevClose) * 100).toFixed(2)) : 0;
           const isEtf = code.startsWith('00');
-          const nav = isEtf ? etfNavs[code] : undefined;
+          const nav = isEtf ? (etfNavs[code] || price) : undefined;
 
           result[code] = {
             code,
@@ -274,7 +283,7 @@ export const fetchTwseOpenApiQuotes = async (): Promise<Record<string, StockQuot
                 change: changeVal,
                 changePct: parseFloat(((changeVal / closeP) * 100).toFixed(2)),
                 type: isEtf ? 'ETF' : '股票',
-                nav: isEtf ? etfNavs[codeUpper] : undefined
+                nav: isEtf ? (etfNavs[codeUpper] || closeP) : undefined
               };
             }
           }
@@ -312,7 +321,7 @@ export const fetchTwseOpenApiQuotes = async (): Promise<Record<string, StockQuot
               change: changeVal,
               changePct: parseFloat(((changeVal / closeP) * 100).toFixed(2)),
               type: isEtf ? 'ETF' : '股票',
-              nav: isEtf ? etfNavs[code] : undefined
+              nav: isEtf ? (etfNavs[code] || closeP) : undefined
             };
           }
         });
