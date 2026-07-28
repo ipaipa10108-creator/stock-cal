@@ -281,16 +281,23 @@ export const AddHoldingModal: React.FC = () => {
                 <i className="fa-solid fa-chart-pie"></i>
                 <span>ETF 基金淨值 (NAV) :</span>
               </label>
-              <input
-                type="number"
-                step="0.01"
-                placeholder="輸入估計淨值"
-                value={holdingForm.nav || ''}
-                onChange={(e) => setHoldingForm({ nav: parseFloat(e.target.value) || 0 })}
-                className={`w-32 rounded px-2 py-1 text-xs text-right font-bold focus:outline-none border ${
-                  isLight ? 'bg-white border-amber-300 text-amber-800' : 'bg-slate-800 border-amber-500/50 text-amber-300'
-                }`}
-              />
+              <div className="flex items-center space-x-1">
+                {holdingForm.nav && holdingForm.nav > 0 ? (
+                  <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1 rounded border border-emerald-200">
+                    🟢 已自動帶入
+                  </span>
+                ) : null}
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="即時估計淨值"
+                  value={holdingForm.nav || ''}
+                  onChange={(e) => setHoldingForm({ nav: parseFloat(e.target.value) || 0 })}
+                  className={`w-28 rounded px-2 py-1 text-xs text-right font-bold focus:outline-none border ${
+                    isLight ? 'bg-white border-amber-300 text-amber-800' : 'bg-slate-800 border-amber-500/50 text-amber-300'
+                  }`}
+                />
+              </div>
             </div>
 
             {(() => {

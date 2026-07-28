@@ -306,18 +306,24 @@ export const useStockStore = create<StockStore>((set, get) => ({
     Object.keys(holdings).forEach(accId => {
       holdings[accId] = holdings[accId].map(item => {
         const key = item.symbol.trim().toUpperCase();
+        const freshQuote = quotesMap[key];
         let freshP = item.currentPrice;
-        
-        if (quotesMap[key] && quotesMap[key].price > 0) {
-          freshP = quotesMap[key].price;
+        let freshNav = item.nav;
+
+        if (freshQuote && freshQuote.price > 0) {
+          freshP = freshQuote.price;
+        }
+        if (freshQuote && freshQuote.nav && freshQuote.nav > 0) {
+          freshNav = freshQuote.nav;
         }
 
-        if (freshP > 0 && freshP !== item.currentPrice) {
+        if ((freshP > 0 && freshP !== item.currentPrice) || (freshNav && freshNav !== item.nav)) {
           const isUp = freshP >= item.currentPrice;
           return {
             ...item,
             currentPrice: freshP,
-            flashClass: isUp ? 'flash-up' : 'flash-down'
+            nav: freshNav,
+            flashClass: (freshP !== item.currentPrice) ? (isUp ? 'flash-up' : 'flash-down') : ''
           };
         }
         return item;
