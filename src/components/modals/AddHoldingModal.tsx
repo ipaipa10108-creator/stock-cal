@@ -46,7 +46,7 @@ export const AddHoldingModal: React.FC = () => {
   };
 
   const handleApplyLivePrice = async () => {
-    const raw = (holdingForm.symbolSearch || holdingForm.symbol).trim().toUpperCase();
+    const raw = (holdingForm.symbolSearch || holdingForm.symbol).trim().toUpperCase().replace(/\.(TW|TWO)$/i, '');
     if (!raw) return;
 
     let targetCode = raw;

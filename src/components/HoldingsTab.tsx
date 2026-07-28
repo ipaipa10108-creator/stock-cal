@@ -69,7 +69,13 @@ export const HoldingsTab: React.FC = () => {
     return true;
   });
 
-  if (sortMode === 'pnl') {
+  if (sortMode === 'createdAt') {
+    filtered.sort((a, b) => {
+      const timeA = parseInt(a.id.replace(/[^\d]/g, '')) || 0;
+      const timeB = parseInt(b.id.replace(/[^\d]/g, '')) || 0;
+      return timeB - timeA;
+    });
+  } else if (sortMode === 'pnl') {
     filtered.sort((a, b) => a.unrealizedPnl - b.unrealizedPnl);
   } else if (sortMode === 'marketValue') {
     filtered.sort((a, b) => b.marketValue - a.marketValue);
@@ -77,7 +83,10 @@ export const HoldingsTab: React.FC = () => {
     filtered.sort((a, b) => a.symbol.localeCompare(b.symbol));
   }
 
-  const sortModeLabel = sortMode === 'pnl' ? '損益排序' : sortMode === 'marketValue' ? '市值排序' : '代號排序';
+  const sortModeLabel = 
+    sortMode === 'createdAt' ? '最新加入' :
+    sortMode === 'pnl' ? '損益排序' :
+    sortMode === 'marketValue' ? '市值排序' : '代號排序';
 
   return (
     <div className="space-y-3">

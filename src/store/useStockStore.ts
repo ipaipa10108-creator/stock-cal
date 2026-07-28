@@ -88,7 +88,7 @@ interface StockStore {
   // Filters & Sorting
   holdingTradeTypeFilter: string;
   setHoldingTradeTypeFilter: (filter: string) => void;
-  sortMode: 'pnl' | 'marketValue' | 'symbol';
+  sortMode: 'createdAt' | 'pnl' | 'marketValue' | 'symbol';
   toggleSort: () => void;
   historyFilter: { startDate: string; endDate: string };
   setHistoryFilter: (filter: { startDate: string; endDate: string }) => void;
@@ -355,12 +355,13 @@ export const useStockStore = create<StockStore>((set, get) => ({
 
   holdingTradeTypeFilter: '現股交易',
   setHoldingTradeTypeFilter: (filter) => set({ holdingTradeTypeFilter: filter }),
-  sortMode: 'pnl',
+  sortMode: 'createdAt',
   toggleSort: () => {
     const mode = get().sortMode;
-    if (mode === 'pnl') set({ sortMode: 'marketValue' });
+    if (mode === 'createdAt') set({ sortMode: 'pnl' });
+    else if (mode === 'pnl') set({ sortMode: 'marketValue' });
     else if (mode === 'marketValue') set({ sortMode: 'symbol' });
-    else set({ sortMode: 'pnl' });
+    else set({ sortMode: 'createdAt' });
   },
   historyFilter: { startDate: '2026-07-01', endDate: todayStr },
   setHistoryFilter: (filter) => set({ historyFilter: filter }),
@@ -384,7 +385,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
   addSearchResults: [],
   searchAddStock: async (query) => {
     const currentTicket = ++addSearchTicket;
-    const q = query.trim().toUpperCase();
+    const q = query.trim().toUpperCase().replace(/\.(TW|TWO)$/i, '');
     if (!q) {
       set({ addSearchResults: [] });
       return;
@@ -414,14 +415,13 @@ export const useStockStore = create<StockStore>((set, get) => ({
       set({ addSearchResults: results });
     }
 
-    // Fetch fresh live price for top result
     if (results.length > 0) {
       const topCode = results[0].code;
       const liveQuote = await fetchSingleYahooQuote(topCode);
       if (currentTicket !== addSearchTicket) return;
 
       if (liveQuote && liveQuote.price > 0) {
-        const chineseName = map[topCode]?.name || results[0].name || liveQuote.name;
+        const chineseName = (liveQuote.name && !/^[A-Za-z0-9\s.,&-]+$/.test(liveQuote.name)) ? liveQuote.name : (map[topCode]?.name || results[0].name);
         results[0] = { ...liveQuote, name: chineseName };
         set({
           addSearchResults: results,
@@ -433,7 +433,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
       if (currentTicket !== addSearchTicket) return;
 
       if (yahooQuote && yahooQuote.price > 0) {
-        const chineseName = map[yahooQuote.code]?.name || yahooQuote.name;
+        const chineseName = (yahooQuote.name && !/^[A-Za-z0-9\s.,&-]+$/.test(yahooQuote.name)) ? yahooQuote.name : (map[yahooQuote.code]?.name || yahooQuote.name);
         const finalQuote = { ...yahooQuote, name: chineseName };
         results.push(finalQuote);
         set({
@@ -446,6 +446,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
   selectAddStock: async (stk) => {
     const f = get().holdingForm;
     const chineseName = get().fullStockMap[stk.code]?.name || stk.name;
+    const isEtf = stk.code.startsWith('00') || stk.type === 'ETF';
 
     set({
       holdingForm: {
@@ -455,7 +456,8 @@ export const useStockStore = create<StockStore>((set, get) => ({
         symbolSearch: `${stk.code} - ${chineseName}`,
         currentPrice: stk.price > 0 ? stk.price : f.currentPrice,
         buyPrice: (!f.buyPrice || f.buyPrice === 0) ? (stk.price > 0 ? stk.price : 0) : f.buyPrice,
-        assetType: stk.type || (stk.code.startsWith('00') ? 'ETF' : '股票')
+        assetType: isEtf ? 'ETF' : '股票',
+        nav: stk.nav !== undefined ? stk.nav : f.nav
       },
       addSearchResults: []
     });
@@ -463,11 +465,23 @@ export const useStockStore = create<StockStore>((set, get) => ({
     const live = await fetchSingleYahooQuote(stk.code);
     if (live && live.price > 0) {
       const curF = get().holdingForm;
-      const updatedQuote = { ...live, name: chineseName };
+      const updatedName = (live.name && !/^[A-Za-z0-9\s.,&-]+$/.test(live.name)) ? live.name : chineseName;
+      const updatedQuote = { ...live, name: updatedName };
       set({
         holdingForm: {
           ...curF,
-          symbol: stk.code,
+          symbol: live.code,
+          name: updatedName,
+          symbolSearch: `${live.code} - ${updatedName}`,
+          currentPrice: live.price,
+          buyPrice: (!curF.buyPrice || curF.buyPrice === 0) ? live.price : curF.buyPrice,
+          nav: live.nav !== undefined ? live.nav : curF.nav,
+          assetType: isEtf ? 'ETF' : '股票'
+        },
+        fullStockMap: { ...get().fullStockMap, [live.code]: updatedQuote }
+      });
+    }
+  },
           name: chineseName,
           symbolSearch: `${stk.code} - ${chineseName}`,
           currentPrice: live.price,

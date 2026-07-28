@@ -87,7 +87,7 @@ export const fetchEtfNavMap = async (): Promise<Record<string, number>> => {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
         data.forEach((stk: any) => {
-          const code = (stk.Code || stk.symbol || '').trim().toUpperCase();
+          const code = (stk.Code || stk.symbol || '').trim().toUpperCase().replace(/\.(TW|TWO)$/i, '');
           const nav = cleanNum(stk.EstimatedNAV || stk.NAV || stk.Nav || stk.NetAssetValue || stk.nav);
           if (code && nav > 0) {
             result[code] = nav;
@@ -109,7 +109,8 @@ export const fetchEtfNavMap = async (): Promise<Record<string, number>> => {
  * 1. Single Yahoo Quote Fetch (Intraday Real-Time)
  */
 export const fetchSingleYahooQuote = async (code: string): Promise<StockQuote | null> => {
-  const cleanCode = code.trim().toUpperCase();
+  if (!code) return null;
+  const cleanCode = code.trim().toUpperCase().replace(/\.(TW|TWO)$/i, '');
   if (!cleanCode) return null;
 
   const dictName = initialStockDictionary[cleanCode]?.name;
@@ -138,8 +139,17 @@ export const fetchSingleYahooQuote = async (code: string): Promise<StockQuote | 
         let name = dictName;
         if (!name) {
           const rawName = meta.shortName || meta.symbol || cleanCode;
-          if (/^[A-Za-z0-9\s.,&-]+$/.test(rawName) && dictName) {
-            name = dictName;
+          if (/^[A-Za-z0-9\s.,&-]+$/.test(rawName)) {
+            try {
+              const misQuote = await fetchTwseMisQuotesBatch([cleanCode]);
+              if (misQuote[cleanCode]?.name && !/^[A-Za-z0-9\s.,&-]+$/.test(misQuote[cleanCode].name)) {
+                name = misQuote[cleanCode].name;
+              } else {
+                name = rawName;
+              }
+            } catch (e) {
+              name = rawName;
+            }
           } else {
             name = rawName;
           }
@@ -169,7 +179,7 @@ export const fetchYahooQuotesBatch = async (symbols: string[]): Promise<Record<s
   const result: Record<string, StockQuote> = {};
   if (!symbols || symbols.length === 0) return result;
 
-  const unique = Array.from(new Set(symbols.map(s => s.trim().toUpperCase())));
+  const unique = Array.from(new Set(symbols.map(s => s.trim().toUpperCase().replace(/\.(TW|TWO)$/i, ''))));
   const promises = unique.map(async (sym) => {
     const q = await fetchSingleYahooQuote(sym);
     if (q) result[sym] = q;
@@ -188,7 +198,7 @@ export const fetchTwseMisQuotesBatch = async (symbols: string[]): Promise<Record
 
   const etfNavs = await fetchEtfNavMap();
 
-  const unique = Array.from(new Set(symbols.map(s => s.trim().toUpperCase())));
+  const unique = Array.from(new Set(symbols.map(s => s.trim().toUpperCase().replace(/\.(TW|TWO)$/i, ''))));
   const channels = unique.map(sym => {
     return (sym.startsWith('6') || sym.startsWith('8') || sym.startsWith('3')) ? `otc_${sym}.two` : `tse_${sym}.tw`;
   }).join('|');
@@ -202,7 +212,7 @@ export const fetchTwseMisQuotesBatch = async (symbols: string[]): Promise<Record
 
     if (Array.isArray(msgArray)) {
       msgArray.forEach((stk: any) => {
-        const code = (stk.c || '').trim().toUpperCase();
+        const code = (stk.c || '').trim().toUpperCase().replace(/\.(TW|TWO)$/i, '');
         const name = (stk.n || code).trim();
         const price = cleanNum(stk.z) || cleanNum(stk.a?.split('_')[0]) || cleanNum(stk.b?.split('_')[0]) || cleanNum(stk.y);
         const prevClose = cleanNum(stk.y) || price;
@@ -255,7 +265,7 @@ export const fetchTwseOpenApiQuotes = async (): Promise<Record<string, StockQuot
             const closeP = cleanNum(stk.ClosingPrice);
             if (closeP > 0) {
               const changeVal = cleanNum(stk.Change);
-              const codeUpper = stk.Code.trim().toUpperCase();
+              const codeUpper = stk.Code.trim().toUpperCase().replace(/\.(TW|TWO)$/i, '');
               const isEtf = codeUpper.startsWith('00');
               result[codeUpper] = {
                 code: codeUpper,
@@ -288,7 +298,7 @@ export const fetchTwseOpenApiQuotes = async (): Promise<Record<string, StockQuot
       const data = await tpexRes.json();
       if (Array.isArray(data) && data.length > 0) {
         data.forEach((stk: any) => {
-          const code = (stk.SecuritiesCompanyCode || stk.Code || stk.symbol || '').trim().toUpperCase();
+          const code = (stk.SecuritiesCompanyCode || stk.Code || stk.symbol || '').trim().toUpperCase().replace(/\.(TW|TWO)$/i, '');
           const name = (stk.CompanyName || stk.Name || stk.name || code).trim();
           const closeP = cleanNum(stk.Close || stk.ClosingPrice || stk.price);
 
@@ -332,7 +342,7 @@ export const fetchQuotesByProvider = async (
   } else if (provider === 'twse_mis') {
     sourceName = '證交所 MIS 即時 API (含 ETF 估值 NAV)';
     quotes = await fetchTwseMisQuotesBatch(symbols);
-    const missing = symbols.filter(s => !quotes[s.toUpperCase()]);
+    const missing = symbols.filter(s => !quotes[s.toUpperCase().replace(/\.(TW|TWO)$/i, '')]);
     if (missing.length > 0) {
       const yahooBackup = await fetchYahooQuotesBatch(missing);
       quotes = { ...quotes, ...yahooBackup };
@@ -342,7 +352,7 @@ export const fetchQuotesByProvider = async (
     const openApiQuotes = await fetchTwseOpenApiQuotes();
     if (openApiQuotes) {
       symbols.forEach(s => {
-        const upper = s.toUpperCase();
+        const upper = s.toUpperCase().replace(/\.(TW|TWO)$/i, '');
         if (openApiQuotes[upper]) quotes[upper] = openApiQuotes[upper];
       });
     }
