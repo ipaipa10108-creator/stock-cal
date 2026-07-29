@@ -11,7 +11,9 @@ export const ShareModal: React.FC = () => {
     currentAccountId,
     importShareText,
     setToastMessage,
-    themeMode
+    themeMode,
+    globalDiscount,
+    fullStockMap
   } = useStockStore();
 
   const [activeSubTab, setActiveSubTab] = useState<'export' | 'import'>('export');
@@ -35,9 +37,14 @@ export const ShareModal: React.FC = () => {
 
   let exportContent = '';
   if (scope === 'single' && shareTargetItem) {
-    exportContent = generateShareText(shareTargetItem);
+    const curP = shareTargetItem.currentPrice || fullStockMap[shareTargetItem.symbol]?.price || 0;
+    exportContent = generateShareText({ ...shareTargetItem, currentPrice: curP }, globalDiscount);
   } else {
-    exportContent = generateShareTextForMultiple(currentHoldings);
+    const itemsToShare = currentHoldings.map(item => ({
+      ...item,
+      currentPrice: item.currentPrice || fullStockMap[item.symbol]?.price || 0
+    }));
+    exportContent = generateShareTextForMultiple(itemsToShare, globalDiscount);
   }
 
   const handleCopy = async () => {
@@ -218,8 +225,8 @@ export const ShareModal: React.FC = () => {
             <textarea
               value={importText}
               onChange={(e) => setImportText(e.target.value)}
-              placeholder={`格式範例：\n股票（ETF）名稱：台積電\n股票代號：2330\n買入價格：980\n股數：1000\n手續折扣：0.38\n購買時間：20260728`}
-              rows={7}
+              placeholder={`格式範例：\n股票（ETF）名稱：元大台灣50正2\n股票代號：00631L\n買入價格：29.59\n股數：6000\n手續折扣：0.38\n購買時間：20260728\n當前股價：28.51\n未實現損益：-6,839\n當下報酬率：-3.85%\n分批購買明細：\n  - 第 1 筆：購買時間：20260728，買價：30.6，股數：3000\n  - 第 2 筆：購買時間：20260729，買價：29.02，股數：2000\n  - 第 3 筆：購買時間：20260729，買價：27.7，股數：1000`}
+              rows={8}
               className={`w-full p-3 rounded-xl border text-xs font-mono resize-none focus:outline-none focus:ring-1 focus:ring-amber-500 ${
                 isLight ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400' : 'bg-slate-900 border-slate-700 text-slate-100 placeholder:text-slate-500'
               }`}

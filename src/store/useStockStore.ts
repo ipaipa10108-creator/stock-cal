@@ -312,7 +312,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
         nm = map[sym].name || nm;
       }
 
-      const curP = map[sym]?.price || item.buyPrice || 0;
+      const curP = item.currentPrice || map[sym]?.price || item.buyPrice || 0;
 
       const newItem: HoldingItem = {
         id: 'h-temp-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
@@ -325,7 +325,8 @@ export const useStockStore = create<StockStore>((set, get) => ({
         assetType: sym.startsWith('00') ? 'ETF' : '股票',
         tradeType: '多-現股交易',
         date: item.date || nowStr,
-        minFee: 20
+        minFee: 20,
+        lots: item.lots && item.lots.length > 0 ? item.lots : undefined
       };
 
       holdings['acc-temp'].push(newItem);
