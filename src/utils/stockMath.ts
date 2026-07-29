@@ -26,15 +26,26 @@ export const calcTradeDetails = (
 };
 
 /**
- * Taiwan Stock Market Tick Size (升降單位/檔位)
- * 未滿 10 元: 0.01
- * 10 元至未滿 50 元: 0.05
- * 50 元至未滿 100 元: 0.10
- * 100 元至未滿 500 元: 0.50
- * 500 元至未滿 1000 元: 1.00
- * 1000 元以上: 5.00
+ * Taiwan Stock Market & ETF Tick Size (升降單位/檔位)
+ * 普通股票 (Stock):
+ *   未滿 10 元: 0.01
+ *   10 元至未滿 50 元: 0.05
+ *   50 元至未滿 100 元: 0.10
+ *   100 元至未滿 500 元: 0.50
+ *   500 元至未滿 1000 元: 1.00
+ *   1000 元以上: 5.00
+ * 
+ * ETF (受益憑證 / ETF):
+ *   未滿 50 元: 0.01
+ *   50 元以上: 0.05
  */
-export const getTickSize = (price: number): number => {
+export const getTickSize = (price: number, assetType?: AssetType | string, symbol?: string): number => {
+  const isEtf = assetType === 'ETF' || (symbol && symbol.toUpperCase().startsWith('00')) || false;
+  if (isEtf) {
+    if (price < 50) return 0.01;
+    return 0.05;
+  }
+
   if (price < 10) return 0.01;
   if (price < 50) return 0.05;
   if (price < 100) return 0.10;
@@ -44,21 +55,34 @@ export const getTickSize = (price: number): number => {
 };
 
 /**
- * Calculate total ticks (檔位數) between two prices across Taiwan stock tick thresholds
+ * Calculate total ticks (檔位數) between two prices across Taiwan stock/ETF tick thresholds
  */
-export const calcTicksBetween = (fromPrice: number, toPrice: number): number => {
+export const calcTicksBetween = (
+  fromPrice: number,
+  toPrice: number,
+  assetType?: AssetType | string,
+  symbol?: string
+): number => {
   if (fromPrice <= 0 || toPrice <= 0) return 0;
   const diff = Math.abs(toPrice - fromPrice);
   if (diff < 0.0001) return 0;
 
+  const alignToTick = (p: number) => {
+    const step = getTickSize(p, assetType, symbol);
+    return parseFloat((Math.round(p / step) * step).toFixed(2));
+  };
+
+  let p1 = alignToTick(Math.min(fromPrice, toPrice));
+  let p2 = alignToTick(Math.max(fromPrice, toPrice));
+  if (Math.abs(p2 - p1) < 0.0001) return 0;
+
   let ticks = 0;
-  let curr = Math.min(fromPrice, toPrice);
-  const target = Math.max(fromPrice, toPrice);
+  let curr = p1;
 
   let safetyCounter = 0;
-  while (curr < target - 0.0001 && safetyCounter < 10000) {
+  while (curr < p2 - 0.0001 && safetyCounter < 10000) {
     safetyCounter++;
-    const step = getTickSize(curr);
+    const step = getTickSize(curr, assetType, symbol);
     curr = parseFloat((curr + step).toFixed(2));
     ticks++;
   }
@@ -76,7 +100,8 @@ export const calcBreakEvenPrice = (
   shares: number,
   assetType?: AssetType,
   tradeType?: TradeTypeOption,
-  globalDiscount: number = 0.38
+  globalDiscount: number = 0.38,
+  symbol?: string
 ): number => {
   if (!buyPrice || buyPrice <= 0 || !shares || shares <= 0) return 0;
   const buyFeeObj = calcTradeDetails(buyPrice, shares, discount, minFee, true, assetType, tradeType, globalDiscount);
@@ -85,11 +110,11 @@ export const calcBreakEvenPrice = (
   const effDiscount = (discount !== undefined && discount !== null) ? discount : globalDiscount;
   const discountFeeRate = 0.001425 * effDiscount;
   let taxRate = 0.003;
-  if (assetType === 'ETF') taxRate = 0.001;
+  if (assetType === 'ETF' || (symbol && symbol.toUpperCase().startsWith('00'))) taxRate = 0.001;
   if (tradeType && tradeType.includes('當沖')) taxRate = 0.0015;
 
   let rawBreakEven = (totalBuyCost / shares) / (1 - discountFeeRate - taxRate);
-  let tick = getTickSize(rawBreakEven);
+  let tick = getTickSize(rawBreakEven, assetType, symbol);
   let candidate = Math.ceil(rawBreakEven / tick) * tick;
   candidate = parseFloat(candidate.toFixed(2));
 
@@ -99,7 +124,7 @@ export const calcBreakEvenPrice = (
     const sellObj = calcTradeDetails(candidate, shares, discount, minFee, false, assetType, tradeType, globalDiscount);
     const proceeds = (candidate * shares) - sellObj.fee - sellObj.tax;
     if (proceeds >= totalBuyCost) break;
-    const step = getTickSize(candidate);
+    const step = getTickSize(candidate, assetType, symbol);
     candidate = parseFloat((candidate + step).toFixed(2));
   }
 

@@ -216,12 +216,16 @@ export const HoldingsTab: React.FC = () => {
               item.shares,
               item.assetType,
               item.tradeType,
-              globalDiscount
+              globalDiscount,
+              item.symbol
             );
             const isLoss = item.unrealizedPnl < 0;
             const ticks = isLoss
-              ? calcTicksBetween(item.currentPrice, breakEven)
-              : calcTicksBetween(breakEven, item.currentPrice);
+              ? calcTicksBetween(item.currentPrice, breakEven, item.assetType, item.symbol)
+              : calcTicksBetween(breakEven, item.currentPrice, item.assetType, item.symbol);
+
+            const priceDiff = Math.abs(breakEven - item.currentPrice);
+            const diffText = priceDiff > 0 ? ` (+$${priceDiff.toFixed(2)})` : '';
 
             return (
               <div
@@ -307,8 +311,8 @@ export const HoldingsTab: React.FC = () => {
                         </span>
                         <span className="text-xs">
                           {isLoss
-                            ? `距離保本打平還差上漲 ${ticks} 檔`
-                            : `目前已經賺了 ${ticks} 檔`}
+                            ? `距離保本打平還差上漲 ${ticks} 檔${diffText}`
+                            : `目前已經賺了 ${ticks} 檔${diffText}`}
                         </span>
                       </div>
                     ) : <div />}
