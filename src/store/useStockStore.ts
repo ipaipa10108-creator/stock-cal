@@ -14,7 +14,7 @@ import {
   HoldingDisplaySettings
 } from '../types/stock';
 import { calcTradeDetails } from '../utils/stockMath';
-import { checkTradingHours, fetchQuotesByProvider, fetchSingleYahooQuote, fetchTwseOpenApiQuotes } from '../services/twseApi';
+import { checkTradingHours, fetchQuotesByProvider, fetchSingleQuote, fetchTwseOpenApiQuotes } from '../services/twseApi';
 import { initialStockDictionary } from '../db/stockDictionary';
 import { GlobalIndexQuote, initialGlobalIndices } from '../services/marketIndices';
 import { parseShareText } from '../utils/shareUtils';
@@ -594,7 +594,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
 
     if (results.length > 0) {
       const topCode = results[0].code;
-      const liveQuote = await fetchSingleYahooQuote(topCode);
+      const liveQuote = await fetchSingleQuote(topCode);
       if (currentTicket !== addSearchTicket) return;
 
       if (liveQuote && liveQuote.price > 0) {
@@ -606,7 +606,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
         });
       }
     } else if (q.length >= 2) {
-      const yahooQuote = await fetchSingleYahooQuote(q);
+      const yahooQuote = await fetchSingleQuote(q);
       if (currentTicket !== addSearchTicket) return;
 
       if (yahooQuote && yahooQuote.price > 0) {
@@ -640,7 +640,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
       addSearchResults: []
     });
 
-    const live = await fetchSingleYahooQuote(stk.code);
+    const live = await fetchSingleQuote(stk.code);
     if (live && live.price > 0) {
       const curF = get().holdingForm;
       const updatedName = (live.name && !/^[A-Za-z0-9\s.,&-]+$/.test(live.name)) ? live.name : chineseName;
@@ -710,7 +710,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
 
     if (results.length > 0) {
       const topCode = results[0].code;
-      const liveQuote = await fetchSingleYahooQuote(topCode);
+      const liveQuote = await fetchSingleQuote(topCode);
       if (currentTicket !== calcSearchTicket) return;
 
       if (liveQuote && liveQuote.price > 0) {
@@ -722,7 +722,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
         });
       }
     } else if (q.length >= 2) {
-      const yahooQuote = await fetchSingleYahooQuote(q);
+      const yahooQuote = await fetchSingleQuote(q);
       if (currentTicket !== calcSearchTicket) return;
 
       if (yahooQuote && yahooQuote.price > 0) {
@@ -748,7 +748,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
       calcSearchResults: []
     }));
 
-    const live = await fetchSingleYahooQuote(stk.code);
+    const live = await fetchSingleQuote(stk.code);
     if (live && live.price > 0) {
       set((state) => ({
         calcForm: {
@@ -994,7 +994,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
 
     // Always fetch live real-time price
     const targetCode = symbol || inputRaw;
-    const liveQuote = await fetchSingleYahooQuote(targetCode);
+    const liveQuote = await fetchSingleQuote(targetCode);
 
     if (liveQuote && liveQuote.price > 0) {
       symbol = liveQuote.code;

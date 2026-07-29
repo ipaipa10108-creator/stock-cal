@@ -1,7 +1,7 @@
 import React from 'react';
 import { useStockStore } from '../../store/useStockStore';
 import { calcTradeDetails, calcEtfPremiumDiscount, formatNum } from '../../utils/stockMath';
-import { fetchSingleYahooQuote } from '../../services/twseApi';
+import { fetchSingleQuote } from '../../services/twseApi';
 
 export const AddHoldingModal: React.FC = () => {
   const {
@@ -59,7 +59,7 @@ export const AddHoldingModal: React.FC = () => {
 
     if (stk) targetCode = stk.code;
 
-    const live = await fetchSingleYahooQuote(targetCode);
+    const live = await fetchSingleQuote(targetCode);
     if (live && live.price > 0) {
       const isEtf = live.code.startsWith('00') || live.type === 'ETF';
       setHoldingForm({

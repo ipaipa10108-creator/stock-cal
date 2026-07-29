@@ -83,7 +83,7 @@ export const fetchEtfNavMap = async (): Promise<Record<string, number>> => {
   ];
 
   try {
-    const channels = popularEtfs.map(sym => `tse_${sym}.tw`).join('|');
+    const channels = popularEtfs.map(sym => `tse_${sym}.tw|otc_${sym}.two`).join('|');
     const targetUrl = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${channels}&_=${now}`;
     const res = await fetchWithProxy(targetUrl);
     const data = await res.json();
@@ -92,7 +92,7 @@ export const fetchEtfNavMap = async (): Promise<Record<string, number>> => {
     if (Array.isArray(msgArray)) {
       msgArray.forEach((stk: any) => {
         const code = (stk.c || '').trim().toUpperCase().replace(/\.(TW|TWO)$/i, '');
-        const price = cleanNum(stk.z) || cleanNum(stk.y);
+        const price = cleanNum(stk.z) || cleanNum(stk.a?.split('_')[0]) || cleanNum(stk.b?.split('_')[0]) || cleanNum(stk.y);
         const estNav = cleanNum(stk.fv || stk.oa || stk.ob || stk.nav);
         if (code && estNav > 0) {
           result[code] = estNav;
@@ -111,7 +111,7 @@ export const fetchEtfNavMap = async (): Promise<Record<string, number>> => {
 };
 
 /**
- * 1. Single Yahoo Quote Fetch (Intraday Real-Time)
+ * 1. Single Yahoo Quote Fetch (Intraday Delayed ~15-20m)
  */
 export const fetchSingleYahooQuote = async (code: string): Promise<StockQuote | null> => {
   if (!code) return null;
@@ -182,7 +182,27 @@ export const fetchSingleYahooQuote = async (code: string): Promise<StockQuote | 
 };
 
 /**
- * 2. Batch Yahoo Finance Quotes Fetch (Intraday Real-Time)
+ * 2. Single Quote Fetcher prioritizing TWSE MIS 0-delay real-time quotes
+ */
+export const fetchSingleQuote = async (code: string): Promise<StockQuote | null> => {
+  if (!code) return null;
+  const cleanCode = code.trim().toUpperCase().replace(/\.(TW|TWO)$/i, '');
+  if (!cleanCode) return null;
+
+  try {
+    const misMap = await fetchTwseMisQuotesBatch([cleanCode]);
+    if (misMap[cleanCode] && misMap[cleanCode].price > 0) {
+      return misMap[cleanCode];
+    }
+  } catch (e) {
+    // Continue to Yahoo fallback
+  }
+
+  return await fetchSingleYahooQuote(cleanCode);
+};
+
+/**
+ * 3. Batch Yahoo Finance Quotes Fetch
  */
 export const fetchYahooQuotesBatch = async (symbols: string[]): Promise<Record<string, StockQuote>> => {
   const result: Record<string, StockQuote> = {};
@@ -199,7 +219,7 @@ export const fetchYahooQuotesBatch = async (symbols: string[]): Promise<Record<s
 };
 
 /**
- * 3. TWSE Real-Time MIS API Fetch (證交所官方盤中即時行情)
+ * 4. TWSE Real-Time MIS API Fetch (證交所官方盤中 0 延遲即時行情)
  */
 export const fetchTwseMisQuotesBatch = async (symbols: string[]): Promise<Record<string, StockQuote>> => {
   const result: Record<string, StockQuote> = {};
@@ -208,9 +228,7 @@ export const fetchTwseMisQuotesBatch = async (symbols: string[]): Promise<Record
   const etfNavs = await fetchEtfNavMap();
 
   const unique = Array.from(new Set(symbols.map(s => s.trim().toUpperCase().replace(/\.(TW|TWO)$/i, ''))));
-  const channels = unique.map(sym => {
-    return (sym.startsWith('6') || sym.startsWith('8') || sym.startsWith('3')) ? `otc_${sym}.two` : `tse_${sym}.tw`;
-  }).join('|');
+  const channels = unique.map(sym => `tse_${sym}.tw|otc_${sym}.two`).join('|');
 
   const targetUrl = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${channels}&_=${Date.now()}`;
 
@@ -222,14 +240,17 @@ export const fetchTwseMisQuotesBatch = async (symbols: string[]): Promise<Record
     if (Array.isArray(msgArray)) {
       msgArray.forEach((stk: any) => {
         const code = (stk.c || '').trim().toUpperCase().replace(/\.(TW|TWO)$/i, '');
-        const name = (stk.n || code).trim();
+        if (!code) return;
+
+        const dictName = initialStockDictionary[code]?.name;
+        const name = (stk.n && !/^[A-Za-z0-9\s.,&-]+$/.test(stk.n)) ? stk.n.trim() : (dictName || stk.n || code).trim();
         const price = cleanNum(stk.z) || cleanNum(stk.a?.split('_')[0]) || cleanNum(stk.b?.split('_')[0]) || cleanNum(stk.y);
         const prevClose = cleanNum(stk.y) || price;
 
         if (code && price > 0) {
           const change = parseFloat((price - prevClose).toFixed(2));
           const changePct = prevClose > 0 ? parseFloat(((change / prevClose) * 100).toFixed(2)) : 0;
-          const isEtf = code.startsWith('00');
+          const isEtf = code.startsWith('00') || dictName?.includes('ETF') || false;
           const nav = isEtf ? (etfNavs[code] || price) : undefined;
 
           result[code] = {
@@ -252,7 +273,7 @@ export const fetchTwseMisQuotesBatch = async (symbols: string[]): Promise<Record
 };
 
 /**
- * 4. TWSE / TPEx Official OpenAPI Fetch (日盤/收盤後官方資料庫)
+ * 5. TWSE / TPEx Official OpenAPI Fetch (日盤/收盤後官方資料庫)
  */
 export const fetchTwseOpenApiQuotes = async (): Promise<Record<string, StockQuote> | null> => {
   const result: Record<string, StockQuote> = {};
@@ -343,13 +364,18 @@ export const fetchQuotesByProvider = async (
   provider: ApiProvider
 ): Promise<{ quotes: Record<string, StockQuote>; sourceName: string }> => {
   let quotes: Record<string, StockQuote> = {};
-  let sourceName = 'Yahoo 股市即時 API (含 ETF 估值 NAV)';
+  let sourceName = '證交所 MIS 零延遲即時 API (含 ETF 估值 NAV)';
 
   if (provider === 'yahoo') {
     sourceName = 'Yahoo 股市即時 API (含 ETF 估值 NAV)';
     quotes = await fetchYahooQuotesBatch(symbols);
+    const missing = symbols.filter(s => !quotes[s.toUpperCase().replace(/\.(TW|TWO)$/i, '')]);
+    if (missing.length > 0) {
+      const misBackup = await fetchTwseMisQuotesBatch(missing);
+      quotes = { ...quotes, ...misBackup };
+    }
   } else if (provider === 'twse_mis') {
-    sourceName = '證交所 MIS 即時 API (含 ETF 估值 NAV)';
+    sourceName = '證交所 MIS 零延遲即時 API (含 ETF 估值 NAV)';
     quotes = await fetchTwseMisQuotesBatch(symbols);
     const missing = symbols.filter(s => !quotes[s.toUpperCase().replace(/\.(TW|TWO)$/i, '')]);
     if (missing.length > 0) {
@@ -366,13 +392,17 @@ export const fetchQuotesByProvider = async (
       });
     }
   } else {
-    // 'auto'
-    sourceName = '自動智選 (Yahoo/MIS 即時行情與 ETF 估值)';
-    quotes = await fetchYahooQuotesBatch(symbols);
-    if (Object.keys(quotes).length < symbols.length) {
-      const misQuotes = await fetchTwseMisQuotesBatch(symbols);
-      quotes = { ...misQuotes, ...quotes };
+    // 'auto' - Default: Priority 0-delay TWSE MIS real-time quotes, backed up by Yahoo Finance
+    sourceName = '自動智選 (證交所 MIS 零延遲即時行情與 ETF 估值)';
+    quotes = await fetchTwseMisQuotesBatch(symbols);
+    
+    // Backup any missing symbols with Yahoo
+    const missing = symbols.filter(s => !quotes[s.toUpperCase().replace(/\.(TW|TWO)$/i, '')]);
+    if (missing.length > 0) {
+      const yahooBackup = await fetchYahooQuotesBatch(missing);
+      quotes = { ...quotes, ...yahooBackup };
     }
+
     if (Object.keys(quotes).length === 0) {
       const openApiQuotes = await fetchTwseOpenApiQuotes();
       if (openApiQuotes) quotes = openApiQuotes;
