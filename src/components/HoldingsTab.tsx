@@ -21,6 +21,9 @@ export const HoldingsTab: React.FC = () => {
     holdingsData,
     currentAccountId,
     globalDiscount,
+    openEditLotModal,
+    lastSplitInfo,
+    undoSplitMergedHolding,
     openAddModal,
     openEditModal,
     openSellModal,
@@ -38,6 +41,58 @@ export const HoldingsTab: React.FC = () => {
   } = useStockStore();
 
   const isLight = themeMode === 'light';
+
+  const getTradeTypeStyle = (tradeType?: string) => {
+    if (!tradeType || tradeType.includes('現股交易')) {
+      return {
+        label: '多-現股買進',
+        annotation: '(現股買進)',
+        badgeClass: 'bg-blue-600 text-white border-blue-500',
+        cardBorder: 'border-slate-200 dark:border-slate-700/80'
+      };
+    } else if (tradeType.includes('當沖')) {
+      return {
+        label: tradeType,
+        annotation: '(現股當沖)',
+        badgeClass: 'bg-amber-500 text-slate-950 font-black border-amber-300 shadow-md',
+        cardBorder: 'border-amber-400 dark:border-amber-500/80 ring-1 ring-amber-400/40'
+      };
+    } else if (tradeType.includes('資買資賣')) {
+      return {
+        label: '多-資買資賣',
+        annotation: '(資買資賣)',
+        badgeClass: 'bg-purple-600 text-white border-purple-400',
+        cardBorder: 'border-purple-300 dark:border-purple-600/70'
+      };
+    } else if (tradeType.includes('資買券賣')) {
+      return {
+        label: '多-資買券賣',
+        annotation: '(資買券賣)',
+        badgeClass: 'bg-indigo-600 text-white border-indigo-400',
+        cardBorder: 'border-indigo-300 dark:border-indigo-600/70'
+      };
+    } else if (tradeType.includes('券賣券買')) {
+      return {
+        label: '空-券賣券買',
+        annotation: '(券賣券買)',
+        badgeClass: 'bg-emerald-600 text-white border-emerald-400',
+        cardBorder: 'border-emerald-300 dark:border-emerald-600/70'
+      };
+    } else if (tradeType.includes('券賣資買')) {
+      return {
+        label: '空-券賣資買',
+        annotation: '(券賣資買)',
+        badgeClass: 'bg-teal-600 text-white border-teal-400',
+        cardBorder: 'border-teal-300 dark:border-teal-600/70'
+      };
+    }
+    return {
+      label: tradeType,
+      annotation: `(${tradeType})`,
+      badgeClass: 'bg-slate-600 text-white border-slate-500',
+      cardBorder: 'border-slate-200 dark:border-slate-700/80'
+    };
+  };
   const currentList = holdingsData[currentAccountId] || [];
   const currentAccountName = accounts.find(a => a.id === currentAccountId)?.name || '目前帳戶';
 
@@ -185,17 +240,43 @@ export const HoldingsTab: React.FC = () => {
         </button>
       </div>
 
+      {/* 復原拆分橫幅提示 */}
+      {lastSplitInfo && (
+        <div className={`p-3 rounded-xl border flex items-center justify-between shadow ${
+          isLight ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-amber-950/40 border-amber-700/60 text-amber-200'
+        }`}>
+          <div className="flex items-center space-x-2 text-xs font-bold">
+            <i className="fa-solid fa-rotate-left text-amber-500 text-base"></i>
+            <div>
+              <div className="font-extrabold text-sm">【可復原拆分】({lastSplitInfo.parentHolding.symbol} - {lastSplitInfo.parentHolding.name})</div>
+              <div className="opacity-80 text-[11px]">已記錄拆分前之合併狀態，點擊右側按鈕可一鍵將獨立筆記恢復重新合併</div>
+            </div>
+          </div>
+          <button
+            onClick={undoSplitMergedHolding}
+            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold rounded-lg text-xs shadow flex items-center space-x-1 transition"
+          >
+            <i className="fa-solid fa-object-group"></i>
+            <span>復原拆分</span>
+          </button>
+        </div>
+      )}
+
       {/* 庫存列表 (網格呈現：手機 1 欄、iPad 2 欄、PC 3 欄) */}
       {sortedList.length === 0 ? (
-        <div className={`text-center py-12 space-y-3 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-          <i className="fa-solid fa-folder-open text-4xl text-slate-400"></i>
-          <p className="text-sm font-semibold">目前此分類下無庫存股票</p>
-          <div className="flex justify-center space-x-2">
+        <div className={`text-center py-12 rounded-xl border border-dashed transition-colors ${
+          isLight ? 'bg-white border-slate-300 text-slate-500' : 'bg-slate-800/50 border-slate-700 text-slate-400'
+        }`}>
+          <i className="fa-solid fa-briefcase text-4xl mb-3 text-slate-400"></i>
+          <p className="font-bold text-base">目前帳戶尚無庫存股票筆記</p>
+          <p className="text-xs mt-1 opacity-80">請點擊上方【新增庫存筆記】或在成交試算中轉入</p>
+          <div className="mt-4 flex justify-center space-x-2">
             <button
               onClick={openAddModal}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg shadow transition"
             >
-              + 新增第一筆庫存
+              <i className="fa-solid fa-plus mr-1"></i>
+              新增第一筆庫存
             </button>
             <button
               onClick={() => openShareModal(null)}
@@ -209,6 +290,7 @@ export const HoldingsTab: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 items-start">
           {sortedList.map((item) => {
+            const tradeStyle = getTradeTypeStyle(item.tradeType);
             const disc = item.discount !== undefined ? item.discount : globalDiscount;
             const breakEven = calcBreakEvenPrice(
               item.buyPrice,
@@ -231,16 +313,16 @@ export const HoldingsTab: React.FC = () => {
             return (
               <div
                 key={item.id}
-                className={`rounded-xl p-3 border transition shadow-sm relative overflow-hidden ${
+                className={`rounded-xl p-3 border transition shadow-sm relative overflow-hidden ${tradeStyle.cardBorder} ${
                   item.pinned
                     ? (isLight ? 'bg-amber-50/50 border-amber-400 shadow-md ring-1 ring-amber-300' : 'bg-slate-800 border-amber-500/80 shadow-lg ring-1 ring-amber-500/40')
-                    : (isLight ? 'bg-white border-slate-200 hover:border-slate-300' : 'bg-slate-800 border-slate-700/80 hover:border-slate-600')
+                    : (isLight ? 'bg-white hover:border-slate-300' : 'bg-slate-800 hover:border-slate-600')
                 } ${item.flashClass || ''}`}
               >
-                {/* 標題列：代號/名稱、釘選按鈕與未實現損益 */}
+                {/* 標題列：代號/名稱、特色交易標籤與未實現損益 */}
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
                       <a
                         href={`https://tw.stock.yahoo.com/quote/${item.symbol.toUpperCase()}.TW`}
                         target="_blank"
@@ -253,10 +335,8 @@ export const HoldingsTab: React.FC = () => {
                         <span>{item.symbol} - {item.name}</span>
                         <i className="fa-solid fa-arrow-up-right-from-square text-xs text-amber-500 opacity-80 group-hover:opacity-100"></i>
                       </a>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold ${
-                        isLight ? 'bg-slate-100 text-amber-700 border-amber-300' : 'bg-slate-700 text-amber-300 border-slate-600'
-                      }`}>
-                        {item.tradeType}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-black ${tradeStyle.badgeClass}`}>
+                        {tradeStyle.label}
                       </span>
                     </div>
                     <div className={`text-xs mt-1 flex items-center space-x-3 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
@@ -340,7 +420,7 @@ export const HoldingsTab: React.FC = () => {
                   );
                 })()}
 
-                {/* 合併明細與拆回按鈕區塊 */}
+                {/* 合併明細（支援長按/點擊修改個別筆記）與拆回按鈕區塊 */}
                 {holdingDisplaySettings.showLotDetails && item.lots && item.lots.length > 1 && (
                   <div className={`mt-2 p-2 rounded-lg text-xs border space-y-1.5 ${
                     isLight ? 'bg-blue-50 border-blue-200 text-blue-900' : 'bg-slate-900/90 border-blue-500/40 text-blue-200'
@@ -348,21 +428,64 @@ export const HoldingsTab: React.FC = () => {
                     <div className="flex justify-between items-center">
                       <span className="font-bold flex items-center space-x-1">
                         <i className="fa-solid fa-object-group text-blue-400"></i>
-                        <span>已加權合併 {item.lots.length} 筆筆記 (平均成本 ${item.buyPrice})</span>
+                        <span>已加權合併 {item.lots.length} 筆筆記 (均價 ${item.buyPrice})</span>
                       </span>
                       <button
                         onClick={() => splitMergedHolding(item.id)}
                         className="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded text-[11px] shadow transition"
+                        title="將此合併筆記拆回獨立庫存卡片"
                       >
                         <i className="fa-solid fa-code-branch mr-1"></i>
                         拆回獨立筆記
                       </button>
                     </div>
-                    <div className="divide-y divide-blue-200/40 text-[11px] pt-1">
+                    <div className="divide-y divide-blue-200/40 text-[11px] pt-1 space-y-1">
                       {item.lots.map((lot, idx) => (
-                        <div key={lot.id || idx} className="py-1 flex justify-between">
-                          <span>第 {idx + 1} 筆 購買日期: <strong>{lot.date}</strong></span>
-                          <span>買價: <strong>${lot.buyPrice}</strong> | 股數: <strong>{formatNum(lot.shares)}股</strong></span>
+                        <div
+                          key={lot.id || idx}
+                          onClick={() => openEditLotModal(item.id, lot)}
+                          title="點擊或長按修改此筆買進紀錄"
+                          className="pt-1 flex justify-between items-center hover:bg-blue-200/40 dark:hover:bg-slate-800/80 rounded px-1 cursor-pointer transition group"
+                        >
+                          <span>第 {idx + 1} 筆 ({lot.date}) : <strong>${lot.buyPrice}</strong></span>
+                          <div className="flex items-center space-x-1.5">
+                            <span>買進: <strong>{formatNum(lot.shares)}股</strong></span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEditLotModal(item.id, lot);
+                              }}
+                              className="text-[10px] text-amber-500 hover:text-amber-400 font-bold px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30"
+                              title="長按或點擊修改"
+                            >
+                              <i className="fa-solid fa-pen-to-square mr-0.5"></i>
+                              修改
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 📜 交易與變更歷史履歷區塊 (何時賣出/買進/還原/價格) */}
+                {item.activityLogs && item.activityLogs.length > 0 && (
+                  <div className={`mt-2 p-2 rounded-lg text-xs border space-y-1 ${
+                    isLight ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-slate-900/90 border-slate-700 text-slate-300'
+                  }`}>
+                    <div className="font-bold flex items-center justify-between text-[11px] text-amber-500 border-b pb-1 border-slate-300/30 dark:border-slate-700/60">
+                      <span className="flex items-center space-x-1">
+                        <i className="fa-solid fa-clock-rotate-left"></i>
+                        <span>交易與變更履歷 ({item.activityLogs.length} 筆)</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">記錄賣出均價、還原與合併歷史</span>
+                    </div>
+                    <div className="divide-y divide-slate-300/30 dark:divide-slate-700/50 text-[10px] max-h-32 overflow-y-auto pr-0.5">
+                      {item.activityLogs.map((log) => (
+                        <div key={log.id} className="py-1 flex justify-between items-center">
+                          <span className="font-medium">{log.note || log.action}</span>
+                          <span className="text-slate-400 font-bold ml-2 shrink-0">{log.date}</span>
                         </div>
                       ))}
                     </div>

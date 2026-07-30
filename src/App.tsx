@@ -16,6 +16,7 @@ import { EditHistoryModal } from './components/modals/EditHistoryModal';
 import { ShareModal } from './components/modals/ShareModal';
 import { TransferTempModal } from './components/modals/TransferTempModal';
 import { TransferHoldingModal } from './components/modals/TransferHoldingModal';
+import { EditLotModal } from './components/modals/EditLotModal';
 
 export const App: React.FC = () => {
   const {
@@ -168,6 +169,7 @@ export const App: React.FC = () => {
         <ShareModal />
         <TransferTempModal />
         <TransferHoldingModal />
+        <EditLotModal />
       </div>
     </div>
   );

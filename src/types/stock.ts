@@ -21,6 +21,17 @@ export interface StockQuote {
   nav?: number;
 }
 
+export interface HoldingActivityLog {
+  id: string;
+  timestamp: string;
+  date: string;
+  action: 'sell' | 'restore' | 'split' | 'unsplit' | 'edit_lot' | 'add_lot';
+  shares: number;
+  price: number;
+  avgBuyPrice?: number;
+  note?: string;
+}
+
 export interface HoldingLot {
   id: string;
   buyPrice: number;
@@ -48,6 +59,7 @@ export interface HoldingItem {
   lots?: HoldingLot[];
   pinned?: boolean;
   orderIndex?: number;
+  activityLogs?: HoldingActivityLog[];
 }
 
 export interface ComputedHolding extends HoldingItem {
@@ -59,6 +71,7 @@ export interface ComputedHolding extends HoldingItem {
   nav?: number;
   pinned?: boolean;
   orderIndex?: number;
+  activityLogs?: HoldingActivityLog[];
 }
 
 export interface HistoryItem {
@@ -77,6 +90,7 @@ export interface HistoryItem {
   discount?: number;
   minFee?: number;
   lots?: HoldingLot[];
+  activityLogs?: HoldingActivityLog[];
 }
 
 export interface Account {
