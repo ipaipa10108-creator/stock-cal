@@ -33,6 +33,7 @@ export const HoldingsTab: React.FC = () => {
     openShareModal,
     setShowShareModal,
     setShowTransferModal,
+    openTransferHoldingModal,
     accounts
   } = useStockStore();
 
@@ -438,6 +439,16 @@ export const HoldingsTab: React.FC = () => {
                   ) : <div />}
 
                   <div className="flex space-x-2">
+                    <button
+                      onClick={() => openTransferHoldingModal(item)}
+                      title="轉移此筆個股/ETF至其他帳戶"
+                      className={`px-2 py-1 rounded transition flex items-center space-x-1 ${
+                        isLight ? 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200' : 'bg-slate-700 hover:bg-slate-600 text-blue-300'
+                      }`}
+                    >
+                      <i className="fa-solid fa-right-left text-xs"></i>
+                      <span className="text-[11px] font-bold">轉移</span>
+                    </button>
                     <button
                       onClick={() => openShareModal(item)}
                       title="分享此筆個股文字"

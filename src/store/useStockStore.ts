@@ -58,6 +58,14 @@ interface StockStore {
   openEditHistoryModal: (item: HistoryItem) => void;
   updateHistoryItem: (item: HistoryItem) => void;
   deleteHistoryItem: (id: string) => void;
+  restoreHistoryToHoldings: (id: string) => void;
+
+  // Single Holding Transfer Modal
+  showTransferHoldingModal: boolean;
+  setShowTransferHoldingModal: (val: boolean) => void;
+  transferHoldingTarget: HoldingItem | null;
+  openTransferHoldingModal: (item: HoldingItem) => void;
+  transferHoldingToAccount: (targetAccountId: string) => void;
 
   // Share & Import Modals
   showShareModal: boolean;
@@ -439,12 +447,26 @@ export const useStockStore = create<StockStore>((set, get) => ({
     if (confirm('確定要刪除這筆歷史交易紀錄嗎？')) {
       const accId = get().currentAccountId;
       const history = { ...get().historyData };
-      const currentList = history[accId] || [];
-      const itemIdx = currentList.findIndex(h => h.id === id);
-      if (itemIdx === -1) return;
+      if (history[accId]) {
+        history[accId] = history[accId].filter(h => h.id !== id);
+        set({ historyData: history });
+        get().saveToStorage();
+        get().setToastMessage('已刪除歷史交易紀錄！');
+        setTimeout(() => get().setToastMessage(null), 2500);
+      }
+    }
+  },
 
-      const item = currentList[itemIdx];
+  restoreHistoryToHoldings: (id) => {
+    const accId = get().currentAccountId;
+    const history = { ...get().historyData };
+    const currentList = history[accId] || [];
+    const itemIdx = currentList.findIndex(h => h.id === id);
+    if (itemIdx === -1) return;
 
+    const item = currentList[itemIdx];
+
+    if (confirm(`確定要將【${item.symbol} ${item.name} (${item.shares} 股)】的賣出平倉紀錄退回庫存嗎？`)) {
       const lotsToReturn: HoldingLot[] = item.lots && item.lots.length > 0
         ? item.lots.map(l => ({ ...l }))
         : [{
@@ -472,9 +494,76 @@ export const useStockStore = create<StockStore>((set, get) => ({
       );
 
       get().saveToStorage();
-      get().setToastMessage(`已刪除歷史紀錄，並將 ${item.shares} 股完整退回至庫存！`);
+      get().setToastMessage(`已將【${item.symbol} ${item.name}】 ${item.shares} 股復原並退回至庫存！`);
       setTimeout(() => get().setToastMessage(null), 3000);
     }
+  },
+
+  showTransferHoldingModal: false,
+  setShowTransferHoldingModal: (val) => set({ showTransferHoldingModal: val }),
+  transferHoldingTarget: null,
+  openTransferHoldingModal: (item) => set({ transferHoldingTarget: item, showTransferHoldingModal: true }),
+
+  transferHoldingToAccount: (targetAccountId) => {
+    const target = get().transferHoldingTarget;
+    if (!target) return;
+
+    const currentAccId = get().currentAccountId;
+    if (currentAccId === targetAccountId) return;
+
+    const holdings = { ...get().holdingsData };
+    const currentList = holdings[currentAccId] || [];
+    const itemIdx = currentList.findIndex(h => h.id === target.id);
+    if (itemIdx === -1) return;
+
+    currentList.splice(itemIdx, 1);
+    holdings[currentAccId] = currentList;
+
+    if (!holdings[targetAccountId]) holdings[targetAccountId] = [];
+    const targetList = holdings[targetAccountId];
+
+    const targetAccName = get().accounts.find(a => a.id === targetAccountId)?.name || targetAccountId;
+
+    const existingIdx = targetList.findIndex(
+      h => h.symbol.toUpperCase() === target.symbol.toUpperCase() && 
+           (!target.tradeType || h.tradeType === target.tradeType)
+    );
+
+    if (existingIdx !== -1) {
+      const existing = targetList[existingIdx];
+      const existingLots = existing.lots && existing.lots.length > 0
+        ? existing.lots
+        : [{ id: 'lot-' + existing.id, buyPrice: existing.buyPrice, shares: existing.shares, date: existing.date, tradeType: existing.tradeType }];
+      const transferLots = target.lots && target.lots.length > 0
+        ? target.lots
+        : [{ id: 'lot-' + target.id, buyPrice: target.buyPrice, shares: target.shares, date: target.date, tradeType: target.tradeType }];
+
+      const mergedLots = [...existingLots, ...transferLots];
+      const totalShares = existing.shares + target.shares;
+      const totalCost = mergedLots.reduce((sum, l) => sum + (l.buyPrice * l.shares), 0);
+      const weightedBuyPrice = parseFloat((totalCost / totalShares).toFixed(2));
+
+      targetList[existingIdx] = {
+        ...existing,
+        shares: totalShares,
+        buyPrice: weightedBuyPrice,
+        lots: mergedLots
+      };
+    } else {
+      targetList.unshift({
+        ...target,
+        id: 'h-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4)
+      });
+    }
+
+    set({
+      holdingsData: holdings,
+      showTransferHoldingModal: false,
+      transferHoldingTarget: null
+    });
+    get().saveToStorage();
+    get().setToastMessage(`已成功將【${target.symbol} ${target.name}】轉移至【${targetAccName}】！`);
+    setTimeout(() => get().setToastMessage(null), 3000);
   },
 
   showShareModal: false,

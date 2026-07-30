@@ -10,7 +10,8 @@ export const HistoryTab: React.FC = () => {
     setHistoryFilter,
     themeMode,
     openEditHistoryModal,
-    deleteHistoryItem
+    deleteHistoryItem,
+    restoreHistoryToHoldings
   } = useStockStore();
 
   const isLight = themeMode === 'light';
@@ -158,8 +159,18 @@ export const HistoryTab: React.FC = () => {
                   <span className="text-[10px] opacity-60">({item.buyDate} ~ {item.sellDate})</span>
                 </div>
                 
-                {/* 修改與刪除按鈕 */}
+                {/* 修改、退回庫存與刪除按鈕 */}
                 <div className="flex items-center space-x-1.5">
+                  <button
+                    onClick={() => restoreHistoryToHoldings(item.id)}
+                    className={`px-2 py-0.5 rounded text-[11px] font-bold flex items-center space-x-1 transition ${
+                      isLight ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' : 'bg-blue-900/40 text-blue-300 hover:bg-blue-800/60'
+                    }`}
+                    title="一鍵將此筆平倉紀錄退回庫存"
+                  >
+                    <i className="fa-solid fa-rotate-left text-[10px]"></i>
+                    <span>退回庫存</span>
+                  </button>
                   <button
                     onClick={() => openEditHistoryModal(item)}
                     className={`px-2 py-0.5 rounded text-[11px] font-bold flex items-center space-x-1 transition ${
