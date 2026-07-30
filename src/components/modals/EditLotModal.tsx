@@ -14,13 +14,18 @@ export const EditLotModal: React.FC = () => {
   const [shares, setShares] = useState(0);
   const [date, setDate] = useState('');
 
+  const isSell = !!editingLotTarget?.lot.isSellLot;
+
   useEffect(() => {
     if (editingLotTarget) {
-      setBuyPrice(editingLotTarget.lot.buyPrice);
+      const priceVal = isSell
+        ? (editingLotTarget.lot.sellPrice !== undefined ? editingLotTarget.lot.sellPrice : editingLotTarget.lot.buyPrice)
+        : editingLotTarget.lot.buyPrice;
+      setBuyPrice(priceVal);
       setShares(editingLotTarget.lot.shares);
       setDate(editingLotTarget.lot.date);
     }
-  }, [editingLotTarget]);
+  }, [editingLotTarget, isSell]);
 
   if (!showEditLotModal || !editingLotTarget) return null;
 
@@ -29,7 +34,7 @@ export const EditLotModal: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (buyPrice <= 0 || shares <= 0) {
-      alert('請輸入有效的買進單價與股數');
+      alert(`請輸入有效的${isSell ? '賣出' : '買進'}單價與股數`);
       return;
     }
     updateHoldingLot(editingLotTarget.holdingId, editingLotTarget.lot.id, {
@@ -47,8 +52,8 @@ export const EditLotModal: React.FC = () => {
       }`}>
         <div className={`flex justify-between items-center border-b pb-3 ${isLight ? 'border-slate-200' : 'border-slate-700'}`}>
           <h3 className="font-bold text-base md:text-lg flex items-center space-x-2">
-            <i className="fa-solid fa-[#fa-pen] fa-pen-to-square text-amber-500"></i>
-            <span>修改個別買進紀錄</span>
+            <i className={`fa-solid ${isSell ? 'fa-square-minus text-rose-500' : 'fa-pen-to-square text-amber-500'}`}></i>
+            <span>{isSell ? '修改賣出紀錄' : '修改個別買進紀錄'}</span>
           </h3>
           <button onClick={closeEditLotModal} className={isLight ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-white'}>
             <i className="fa-solid fa-xmark text-lg"></i>
@@ -57,7 +62,9 @@ export const EditLotModal: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className={`block text-xs mb-1 font-semibold ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>買進單價 (NT$)</label>
+            <label className={`block text-xs mb-1 font-semibold ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+              {isSell ? '賣出單價 (NT$)' : '買進單價 (NT$)'}
+            </label>
             <input
               type="number"
               step="0.01"
@@ -70,7 +77,9 @@ export const EditLotModal: React.FC = () => {
           </div>
 
           <div>
-            <label className={`block text-xs mb-1 font-semibold ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>買進股數</label>
+            <label className={`block text-xs mb-1 font-semibold ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+              {isSell ? '賣出股數' : '買進股數'}
+            </label>
             <input
               type="number"
               step="1"
@@ -83,7 +92,9 @@ export const EditLotModal: React.FC = () => {
           </div>
 
           <div>
-            <label className={`block text-xs mb-1 font-semibold ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>買進日期</label>
+            <label className={`block text-xs mb-1 font-semibold ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+              {isSell ? '賣出日期' : '買進日期'}
+            </label>
             <input
               type="date"
               value={date}

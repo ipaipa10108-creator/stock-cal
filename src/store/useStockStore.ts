@@ -216,8 +216,8 @@ const restoreLotsToHoldings = (
 
   if (existingIdx !== -1) {
     const existing = holdings[accId][existingIdx];
-    const existingLots = existing.lots && existing.lots.length > 0
-      ? existing.lots
+    let existingLots = existing.lots && existing.lots.length > 0
+      ? [...existing.lots]
       : [{
           id: 'lot-' + existing.id,
           buyPrice: existing.buyPrice,
@@ -226,10 +226,29 @@ const restoreLotsToHoldings = (
           tradeType: existing.tradeType
         }];
 
-    const mergedLots = [...existingLots, ...lotsToReturn];
-    const totalShares = existing.shares + totalReturnedShares;
-    const totalCost = mergedLots.reduce((sum, l) => sum + (l.buyPrice * l.shares), 0);
-    const weightedPrice = parseFloat((totalCost / totalShares).toFixed(2));
+    // 若庫存明細中含有相對應的賣出筆記 (isSellLot)，直接將該賣出筆記移除
+    const sellLotIdx = existingLots.findIndex(l => l.isSellLot && l.shares === totalReturnedShares);
+    if (sellLotIdx !== -1) {
+      existingLots.splice(sellLotIdx, 1);
+    } else {
+      const anySellLotIdx = existingLots.findIndex(l => l.isSellLot);
+      if (anySellLotIdx !== -1) {
+        existingLots.splice(anySellLotIdx, 1);
+      } else {
+        existingLots.push(...lotsToReturn);
+      }
+    }
+
+    const buyLots = existingLots.filter(l => !l.isSellLot);
+    const sellLots = existingLots.filter(l => l.isSellLot);
+
+    const totalBuyShares = buyLots.reduce((sum, l) => sum + l.shares, 0);
+    const totalSellShares = sellLots.reduce((sum, l) => sum + l.shares, 0);
+    const totalShares = totalBuyShares - totalSellShares;
+
+    const totalBuyCost = buyLots.reduce((sum, l) => sum + (l.buyPrice * l.shares), 0);
+    const weightedPrice = totalBuyShares > 0 ? parseFloat((totalBuyCost / totalBuyShares).toFixed(2)) : existing.buyPrice;
+
     restoreLog.avgBuyPrice = weightedPrice;
     restoreLog.price = weightedPrice;
     restoreLog.note = `自歷史還原 ${totalReturnedShares.toLocaleString()} 股 (買進均價 $${weightedPrice})`;
@@ -238,7 +257,7 @@ const restoreLotsToHoldings = (
       ...existing,
       shares: totalShares,
       buyPrice: weightedPrice,
-      lots: mergedLots,
+      lots: existingLots,
       activityLogs: [restoreLog, ...(existing.activityLogs || [])]
     };
   } else {
@@ -1295,43 +1314,44 @@ export const useStockStore = create<StockStore>((set, get) => ({
     const list = holdings[accId] || [];
     const idx = list.findIndex(h => h.id === target.id);
     if (idx !== -1) {
-      if (list[idx].shares <= s) {
-        list.splice(idx, 1);
-      } else {
-        const oldShares = list[idx].shares;
-        const newShares = oldShares - s;
-        const ratio = newShares / oldShares;
+        const sellLotItem: HoldingLot = {
+          id: 'lot-sell-' + Date.now(),
+          buyPrice: avgSoldBuyPrice,
+          sellPrice: p,
+          shares: s,
+          date: sellDate,
+          isSellLot: true,
+          tradeType: target.tradeType
+        };
 
-        let scaledLots: HoldingLot[] | undefined = undefined;
-        if (list[idx].lots && list[idx].lots!.length > 0) {
-          let sumAllocated = 0;
-          const originalLots = list[idx].lots!;
-          scaledLots = originalLots.map((l, i) => {
-            let lotShares = Math.round(l.shares * ratio);
-            if (i === originalLots.length - 1) {
-              lotShares = newShares - sumAllocated;
-            } else {
-              sumAllocated += lotShares;
-            }
-            return {
-              ...l,
-              shares: Math.max(1, lotShares)
-            };
-          });
-        }
+        const existingLots: HoldingLot[] = list[idx].lots && list[idx].lots!.length > 0
+          ? list[idx].lots!
+          : [{
+              id: 'lot-' + list[idx].id,
+              buyPrice: list[idx].buyPrice,
+              shares: list[idx].shares,
+              date: list[idx].date,
+              tradeType: list[idx].tradeType
+            }];
 
-        const newAvgPrice = scaledLots && scaledLots.length > 0
-          ? parseFloat((scaledLots.reduce((sum, l) => sum + (l.buyPrice * l.shares), 0) / newShares).toFixed(2))
-          : list[idx].buyPrice;
+        const updatedLots = [...existingLots, sellLotItem];
+        const buyLots = updatedLots.filter(l => !l.isSellLot);
+        const sellLots = updatedLots.filter(l => l.isSellLot);
+
+        const totalBuyShares = buyLots.reduce((sum, l) => sum + l.shares, 0);
+        const totalSellShares = sellLots.reduce((sum, l) => sum + l.shares, 0);
+        const netShares = totalBuyShares - totalSellShares;
+
+        const totalBuyCost = buyLots.reduce((sum, l) => sum + (l.buyPrice * l.shares), 0);
+        const newAvgPrice = totalBuyShares > 0 ? parseFloat((totalBuyCost / totalBuyShares).toFixed(2)) : list[idx].buyPrice;
 
         list[idx] = {
           ...list[idx],
-          shares: newShares,
+          shares: netShares > 0 ? netShares : 0,
           buyPrice: newAvgPrice,
-          lots: scaledLots || list[idx].lots,
+          lots: updatedLots,
           activityLogs: [sellLog, ...(list[idx].activityLogs || [])]
         };
-      }
     }
 
     set({
@@ -1659,17 +1679,27 @@ export const useStockStore = create<StockStore>((set, get) => ({
     const lotIdx = item.lots.findIndex(l => l.id === lotId);
     if (lotIdx === -1) return;
 
+    const targetLot = item.lots[lotIdx];
+    const isSell = !!targetLot.isSellLot;
+
     const updatedLots = [...item.lots];
     updatedLots[lotIdx] = {
       ...updatedLots[lotIdx],
-      buyPrice: updated.buyPrice,
+      buyPrice: isSell ? targetLot.buyPrice : updated.buyPrice,
+      sellPrice: isSell ? updated.buyPrice : targetLot.sellPrice,
       shares: updated.shares,
       date: updated.date
     };
 
-    const totalShares = updatedLots.reduce((sum, l) => sum + l.shares, 0);
-    const totalCost = updatedLots.reduce((sum, l) => sum + (l.buyPrice * l.shares), 0);
-    const weightedPrice = totalShares > 0 ? parseFloat((totalCost / totalShares).toFixed(2)) : item.buyPrice;
+    const buyLots = updatedLots.filter(l => !l.isSellLot);
+    const sellLots = updatedLots.filter(l => l.isSellLot);
+
+    const totalBuyShares = buyLots.reduce((sum, l) => sum + l.shares, 0);
+    const totalSellShares = sellLots.reduce((sum, l) => sum + l.shares, 0);
+    const netShares = totalBuyShares - totalSellShares;
+
+    const totalBuyCost = buyLots.reduce((sum, l) => sum + (l.buyPrice * l.shares), 0);
+    const weightedPrice = totalBuyShares > 0 ? parseFloat((totalBuyCost / totalBuyShares).toFixed(2)) : item.buyPrice;
 
     const editLog: HoldingActivityLog = {
       id: 'log-' + Date.now(),
@@ -1678,12 +1708,14 @@ export const useStockStore = create<StockStore>((set, get) => ({
       action: 'edit_lot',
       shares: updated.shares,
       price: updated.buyPrice,
-      note: `修改個別買進紀錄: ${updated.shares.toLocaleString()}股 @ $${updated.buyPrice} (${updated.date})`
+      note: isSell
+        ? `修改賣出紀錄: 賣出 ${updated.shares.toLocaleString()}股 @ $${updated.buyPrice} (${updated.date})`
+        : `修改買進紀錄: ${updated.shares.toLocaleString()}股 @ $${updated.buyPrice} (${updated.date})`
     };
 
     list[idx] = {
       ...item,
-      shares: totalShares,
+      shares: netShares > 0 ? netShares : 0,
       buyPrice: weightedPrice,
       lots: updatedLots,
       activityLogs: [editLog, ...(item.activityLogs || [])]

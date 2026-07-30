@@ -40,6 +40,8 @@ export interface HoldingLot {
   tradeType?: TradeTypeOption;
   discount?: number;
   minFee?: number;
+  isSellLot?: boolean;
+  sellPrice?: number;
 }
 
 export interface HoldingItem {

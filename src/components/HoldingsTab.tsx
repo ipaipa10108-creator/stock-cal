@@ -440,31 +440,53 @@ export const HoldingsTab: React.FC = () => {
                       </button>
                     </div>
                     <div className="divide-y divide-blue-200/40 text-[11px] pt-1 space-y-1">
-                      {item.lots.map((lot, idx) => (
-                        <div
-                          key={lot.id || idx}
-                          onClick={() => openEditLotModal(item.id, lot)}
-                          title="點擊或長按修改此筆買進紀錄"
-                          className="pt-1 flex justify-between items-center hover:bg-blue-200/40 dark:hover:bg-slate-800/80 rounded px-1 cursor-pointer transition group"
-                        >
-                          <span>第 {idx + 1} 筆 ({lot.date}) : <strong>${lot.buyPrice}</strong></span>
-                          <div className="flex items-center space-x-1.5">
-                            <span>買進: <strong>{formatNum(lot.shares)}股</strong></span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openEditLotModal(item.id, lot);
-                              }}
-                              className="text-[10px] text-amber-500 hover:text-amber-400 font-bold px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30"
-                              title="長按或點擊修改"
-                            >
-                              <i className="fa-solid fa-pen-to-square mr-0.5"></i>
-                              修改
-                            </button>
+                      {item.lots.map((lot, idx) => {
+                        const isSell = !!lot.isSellLot;
+                        return (
+                          <div
+                            key={lot.id || idx}
+                            onClick={() => openEditLotModal(item.id, lot)}
+                            title={`點擊或長按修改此筆${isSell ? '賣出' : '買進'}紀錄`}
+                            className={`pt-1 flex justify-between items-center rounded px-1.5 cursor-pointer transition group ${
+                              isSell
+                                ? (isLight ? 'bg-rose-100/70 hover:bg-rose-200/80 text-rose-950 font-bold' : 'bg-rose-950/60 hover:bg-rose-900/80 text-rose-200 font-bold')
+                                : (isLight ? 'hover:bg-blue-200/40 text-slate-800' : 'hover:bg-slate-800/80 text-slate-200')
+                            }`}
+                          >
+                            <span>
+                              第 {idx + 1} 筆 ({lot.date}) :{' '}
+                              <strong className={isSell ? 'text-rose-600 dark:text-rose-400 font-black' : ''}>
+                                ${isSell ? (lot.sellPrice || lot.buyPrice) : lot.buyPrice}
+                              </strong>
+                              {isSell && <span className="text-[10px] ml-1 text-rose-500 font-bold">(賣價)</span>}
+                            </span>
+                            <div className="flex items-center space-x-1.5">
+                              <span>
+                                {isSell ? '賣出: ' : '買進: '}
+                                <strong className={isSell ? 'text-rose-600 dark:text-rose-400 font-black' : ''}>
+                                  {formatNum(lot.shares)}股
+                                </strong>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditLotModal(item.id, lot);
+                                }}
+                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded border transition ${
+                                  isSell
+                                    ? 'text-rose-500 hover:text-rose-400 bg-rose-500/10 border-rose-500/30'
+                                    : 'text-amber-500 hover:text-amber-400 bg-amber-500/10 border-amber-500/30'
+                                }`}
+                                title="長按或點擊修改"
+                              >
+                                <i className="fa-solid fa-pen-to-square mr-0.5"></i>
+                                修改
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
