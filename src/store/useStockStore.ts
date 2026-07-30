@@ -11,6 +11,7 @@ import {
   ComputedHolding,
   ApiProvider,
   HoldingLot,
+  HoldingActivityLog,
   HoldingDisplaySettings
 } from '../types/stock';
 import { calcTradeDetails } from '../utils/stockMath';
