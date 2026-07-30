@@ -97,7 +97,7 @@ export const MarketTab: React.FC = () => {
         </div>
 
         {/* 國際指數卡片網格 (手機 2 欄、iPad 3 欄、PC 4 欄) */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 text-xs max-h-[500px] overflow-y-auto pr-0.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 text-xs max-h-[500px] overflow-y-auto pr-0.5">
           {filteredIndices.map((idx) => {
             const isUp = idx.change >= 0;
             return (
@@ -152,7 +152,7 @@ export const MarketTab: React.FC = () => {
           <h3 className={`text-sm md:text-base font-bold ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>熱門台股動態即時價</h3>
           <span className={`text-[11px] font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>點擊可快速新增</span>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-96 overflow-y-auto pr-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-96 overflow-y-auto pr-1">
           {presetStockList.map((stk) => (
             <div
               key={stk.code}

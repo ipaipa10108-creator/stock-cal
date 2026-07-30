@@ -73,9 +73,9 @@ export const App: React.FC = () => {
   const isLight = themeMode === 'light';
 
   return (
-    <div className={`min-h-screen w-full transition-colors ${isLight ? 'bg-slate-200/50' : 'bg-slate-950'}`}>
-      <div className={`w-full max-w-md md:max-w-4xl lg:max-w-7xl 2xl:max-w-[1400px] mx-auto min-h-screen shadow-2xl flex flex-col relative md:border-x transition-colors duration-200 font-sans select-none ${
-        isLight ? 'bg-slate-100 text-slate-900 border-slate-300' : 'bg-slate-900 text-slate-100 border-slate-800'
+    <div className={`min-h-screen w-full transition-colors ${isLight ? 'bg-slate-100' : 'bg-slate-900'}`}>
+      <div className={`w-full max-w-full lg:max-w-7xl 2xl:max-w-[1400px] mx-auto min-h-screen shadow-2xl flex flex-col relative transition-colors duration-200 font-sans select-none ${
+        isLight ? 'bg-slate-100 text-slate-900' : 'bg-slate-900 text-slate-100'
       }`}>
         {/* Toast Notification */}
         {toastMessage && (
@@ -89,7 +89,7 @@ export const App: React.FC = () => {
         <Header />
 
         {/* 主要內容區域 */}
-        <main className="flex-1 overflow-y-auto p-3 md:p-5 lg:p-6 space-y-4 pb-20 lg:pb-8">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-4 pb-20 lg:pb-8">
           {activeTab === 'holdings' && <HoldingsTab />}
           {activeTab === 'calculator' && <CalculatorTab />}
           {activeTab === 'history' && <HistoryTab />}
@@ -98,8 +98,8 @@ export const App: React.FC = () => {
           {activeTab === 'settings' && <SettingsTab />}
         </main>
 
-        {/* 底部導覽列 NAVBAR (行動版 & iPad 顯示，PC 寬螢幕隱藏) */}
-        <nav className={`fixed bottom-0 left-0 right-0 w-full max-w-md md:max-w-4xl mx-auto z-30 flex justify-around py-2 md:py-3 text-center text-xs md:text-sm border-t transition-colors lg:hidden ${
+        {/* 底部導覽列 NAVBAR (行動版 & iPad 滿版顯示，PC 寬螢幕隱藏) */}
+        <nav className={`fixed bottom-0 left-0 right-0 w-full z-30 flex justify-around py-2.5 md:py-3 text-center text-xs md:text-sm border-t transition-colors lg:hidden ${
           isLight ? 'bg-white/95 backdrop-blur-md border-slate-200 text-slate-700' : 'bg-slate-800/95 backdrop-blur-md border-slate-700 text-slate-300'
         }`}>
           <button

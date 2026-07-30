@@ -76,10 +76,10 @@ export const CalculatorTab: React.FC = () => {
         </button>
       </div>
 
-      {/* 響應式佈局：行動版單欄，PC/桌機雙欄 (Left: 5 cols, Right: 7 cols) */}
-      <div className="lg:grid lg:grid-cols-12 lg:gap-6 space-y-4 lg:space-y-0 items-start">
-        {/* 左欄：搜尋與試算參數輸入 (lg:col-span-5) */}
-        <div className="lg:col-span-5 space-y-4">
+      {/* 響應式佈局：行動版單欄，iPad/平板與桌機雙欄 (Left: 5 cols, Right: 7 cols) */}
+      <div className="sm:grid sm:grid-cols-12 sm:gap-4 md:gap-6 space-y-4 sm:space-y-0 items-start">
+        {/* 左欄：搜尋與試算參數輸入 (sm:col-span-5) */}
+        <div className="sm:col-span-5 space-y-4">
           {/* 搜尋或輸入標的 */}
           <div className="relative">
             <label className={`block text-xs md:text-sm mb-1 font-semibold ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
@@ -235,8 +235,8 @@ export const CalculatorTab: React.FC = () => {
           </div>
         </div>
 
-        {/* 右欄：試算結果與動作按鈕 (lg:col-span-7) */}
-        <div className="lg:col-span-7 space-y-4">
+        {/* 右欄：試算結果與動作按鈕 (sm:col-span-7) */}
+        <div className="sm:col-span-7 space-y-4">
           <div className={`rounded-xl p-4 md:p-5 border space-y-3 shadow-inner ${
             isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/90 border-slate-700'
           }`}>

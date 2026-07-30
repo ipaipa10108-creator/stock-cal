@@ -79,7 +79,7 @@ export const SettingsTab: React.FC = () => {
         <span>系統設定與主題選擇</span>
       </h2>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
         {/* 左側欄位：API 數據源與介面設定 */}
         <div className="space-y-4">
           {/* 即時行情 API 數據源選擇區 */}

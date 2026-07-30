@@ -118,8 +118,8 @@ export const Header: React.FC = () => {
             <i className="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
           </button>
 
-          {/* PC 桌機專屬頁籤導覽 (lg 螢幕顯示) */}
-          <nav className="hidden lg:flex items-center space-x-1 border-l pl-3 border-slate-300 dark:border-slate-700">
+          {/* PC 桌機與 iPad 專屬頁籤導覽 (sm: 640px+ 螢幕顯示) */}
+          <nav className="hidden sm:flex items-center space-x-1 border-l pl-3 border-slate-300 dark:border-slate-700">
             <button
               onClick={() => setActiveTab('holdings')}
               className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 ${
@@ -273,7 +273,7 @@ export const Header: React.FC = () => {
       </div>
 
       {/* 總體庫存卡片數據 SUMMARY Dashboard (手機 3 欄 / 平板與桌機 5 欄) */}
-      <div className="grid grid-cols-3 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3 text-center">
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 md:gap-3 text-center">
         <div className={`p-2 md:p-3 rounded-lg border transition ${
           isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-900/80 border-slate-700'
         }`}>
@@ -301,15 +301,15 @@ export const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* 擴充卡片 (桌機 lg 顯示) */}
-        <div className={`hidden lg:block p-2 md:p-3 rounded-lg border transition ${
+        {/* 擴充卡片 (平板 sm 及桌機顯示) */}
+        <div className={`hidden sm:block p-2 md:p-3 rounded-lg border transition ${
           isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-900/80 border-slate-700'
         }`}>
           <div className={`text-[11px] md:text-xs ${isLight ? 'text-slate-500 font-semibold' : 'text-slate-400'}`}>庫存檔數</div>
           <div className={`text-sm md:text-base font-bold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>{list.length} 檔股票</div>
           <div className="text-[10px] text-slate-400 font-semibold">當前帳戶數量</div>
         </div>
-        <div className={`hidden lg:block p-2 md:p-3 rounded-lg border transition ${
+        <div className={`hidden sm:block p-2 md:p-3 rounded-lg border transition ${
           isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-900/80 border-slate-700'
         }`}>
           <div className={`text-[11px] md:text-xs ${isLight ? 'text-slate-500 font-semibold' : 'text-slate-400'}`}>目前管理帳戶</div>

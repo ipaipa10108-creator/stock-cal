@@ -207,7 +207,7 @@ export const HoldingsTab: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 items-start">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 items-start">
           {sortedList.map((item) => {
             const disc = item.discount !== undefined ? item.discount : globalDiscount;
             const breakEven = calcBreakEvenPrice(
