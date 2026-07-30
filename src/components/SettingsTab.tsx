@@ -19,14 +19,26 @@ export const SettingsTab: React.FC = () => {
     apiProvider,
     setApiProvider,
     holdingDisplaySettings,
-    setHoldingDisplaySettings
+    setHoldingDisplaySettings,
+    accounts,
+    currentAccountId
   } = useStockStore();
 
   const isLight = themeMode === 'light';
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = async () => {
-    const jsonStr = await exportAppDataAsJson(holdingsData, historyData, globalDiscount, accountLimitInput);
+    const jsonStr = await exportAppDataAsJson(
+      holdingsData,
+      historyData,
+      globalDiscount,
+      accountLimitInput,
+      accounts,
+      themeMode,
+      apiProvider,
+      holdingDisplaySettings,
+      currentAccountId
+    );
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(jsonStr);
     const todayStr = new Date().toISOString().split('T')[0];
 

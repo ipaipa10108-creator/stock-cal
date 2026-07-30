@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import { HoldingItem, HistoryItem } from '../types/stock';
+import { HoldingItem, HistoryItem, Account, HoldingDisplaySettings, ApiProvider } from '../types/stock';
 
 export interface AppSetting {
   key: string;
@@ -27,15 +27,25 @@ export const exportAppDataAsJson = async (
   holdingsData: Record<string, HoldingItem[]>,
   historyData: Record<string, HistoryItem[]>,
   globalDiscount: number,
-  accountLimitInput: number | null
+  accountLimitInput: number | null,
+  accounts?: Account[],
+  themeMode?: 'dark' | 'light',
+  apiProvider?: ApiProvider,
+  holdingDisplaySettings?: HoldingDisplaySettings,
+  currentAccountId?: string
 ): Promise<string> => {
   const data = {
     version: '2.0',
     exportTime: new Date().toISOString(),
     holdings: holdingsData,
     history: historyData,
+    accounts: accounts,
     discount: globalDiscount,
-    limit: accountLimitInput
+    limit: accountLimitInput,
+    themeMode,
+    apiProvider,
+    holdingDisplaySettings,
+    currentAccountId
   };
   return JSON.stringify(data, null, 2);
 };

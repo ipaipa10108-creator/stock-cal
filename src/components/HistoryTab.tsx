@@ -125,8 +125,10 @@ export const HistoryTab: React.FC = () => {
                   <div className={`font-black text-sm ${getPnlColorClass(item.realizedPnl)}`}>
                     {item.realizedPnl >= 0 ? '+' : ''}{formatNum(item.realizedPnl)}
                   </div>
-                  <div className={`text-xs font-bold ${getPnlColorClass(item.realizedPnl)}`}>
+                  <div className={`text-xs font-bold ${getPnlColorClass(item.returnPct)}`}>
                     {formatPct(item.returnPct)}
+                  </div>
+                </div>
               </div>
 
               {item.lots && item.lots.length > 1 && (

@@ -1490,8 +1490,15 @@ export const useStockStore = create<StockStore>((set, get) => ({
       }
       const discount = parsed.discount !== undefined ? parsed.discount : get().globalDiscount;
       const limit = parsed.limit !== undefined ? parsed.limit : get().accountLimitInput;
-      const theme = parsed.themeMode || 'dark';
-      const provider = parsed.apiProvider || 'yahoo';
+      const theme = parsed.themeMode || get().themeMode;
+      const provider = parsed.apiProvider || get().apiProvider;
+      const holdingDisplaySettings = parsed.holdingDisplaySettings
+        ? { ...get().holdingDisplaySettings, ...parsed.holdingDisplaySettings }
+        : get().holdingDisplaySettings;
+      const currentAccountId = parsed.currentAccountId && accounts.some(a => a.id === parsed.currentAccountId)
+        ? parsed.currentAccountId
+        : get().currentAccountId;
+
       set({
         accounts,
         holdingsData: holdings,
@@ -1499,7 +1506,9 @@ export const useStockStore = create<StockStore>((set, get) => ({
         globalDiscount: discount,
         accountLimitInput: limit,
         themeMode: theme,
-        apiProvider: provider
+        apiProvider: provider,
+        holdingDisplaySettings,
+        currentAccountId
       });
       get().saveToStorage();
       return true;
