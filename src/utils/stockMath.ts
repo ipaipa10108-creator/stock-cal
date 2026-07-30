@@ -180,3 +180,63 @@ export const calcEtfPremiumDiscount = (
     isPremium
   };
 };
+
+export interface TradeTypeStyle {
+  label: string;
+  shortLabel: string;
+  badgeClass: string;
+  cardBorder: string;
+}
+
+export const getTradeTypeStyle = (tradeType?: string): TradeTypeStyle => {
+  if (!tradeType || tradeType.includes('現股交易')) {
+    return {
+      label: '多-現股買進',
+      shortLabel: '現股交易',
+      badgeClass: 'bg-blue-600/90 text-white border-blue-500/50',
+      cardBorder: 'border-slate-200 dark:border-slate-700/80'
+    };
+  } else if (tradeType.includes('當沖')) {
+    return {
+      label: tradeType,
+      shortLabel: tradeType.includes('多') ? '多-現股當沖' : (tradeType.includes('空') ? '空-現股當沖' : '現股當沖'),
+      badgeClass: 'bg-amber-500 text-slate-950 font-black border-amber-300 shadow-sm',
+      cardBorder: 'border-amber-400 dark:border-amber-500/80 ring-1 ring-amber-400/40'
+    };
+  } else if (tradeType.includes('資買資賣')) {
+    return {
+      label: '多-資買資賣',
+      shortLabel: '資買資賣',
+      badgeClass: 'bg-purple-600 text-white border-purple-400',
+      cardBorder: 'border-purple-300 dark:border-purple-600/70'
+    };
+  } else if (tradeType.includes('資買券賣')) {
+    return {
+      label: '多-資買券賣',
+      shortLabel: '資買券賣',
+      badgeClass: 'bg-indigo-600 text-white border-indigo-400',
+      cardBorder: 'border-indigo-300 dark:border-indigo-600/70'
+    };
+  } else if (tradeType.includes('券賣券買')) {
+    return {
+      label: '空-券賣券買',
+      shortLabel: '券賣券買',
+      badgeClass: 'bg-emerald-600 text-white border-emerald-400',
+      cardBorder: 'border-emerald-300 dark:border-emerald-600/70'
+    };
+  } else if (tradeType.includes('券賣資買')) {
+    return {
+      label: '空-券賣資買',
+      shortLabel: '券賣資買',
+      badgeClass: 'bg-teal-600 text-white border-teal-400',
+      cardBorder: 'border-teal-300 dark:border-teal-600/70'
+    };
+  }
+  return {
+    label: tradeType,
+    shortLabel: tradeType,
+    badgeClass: 'bg-slate-600 text-white border-slate-500',
+    cardBorder: 'border-slate-200 dark:border-slate-700/80'
+  };
+};
+

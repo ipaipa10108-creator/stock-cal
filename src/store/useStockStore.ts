@@ -1880,7 +1880,8 @@ export const useStockStore = create<StockStore>((set, get) => ({
             realizedPnl: -2495,
             returnPct: -9.03,
             buyDate: '2026-06-12',
-            sellDate: '2026-07-23'
+            sellDate: '2026-07-23',
+            tradeType: '多-現股交易'
           },
           {
             id: 'his-2',
@@ -1892,7 +1893,8 @@ export const useStockStore = create<StockStore>((set, get) => ({
             realizedPnl: 14979,
             returnPct: 9.29,
             buyDate: '2026-07-20',
-            sellDate: '2026-07-23'
+            sellDate: '2026-07-23',
+            tradeType: '多-現股當沖'
           }
         ]
       }

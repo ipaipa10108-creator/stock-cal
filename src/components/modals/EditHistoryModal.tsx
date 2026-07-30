@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useStockStore } from '../../store/useStockStore';
-import { HistoryItem } from '../../types/stock';
+import { HistoryItem, TradeTypeOption } from '../../types/stock';
 import { calcTradeDetails, formatNum, getPnlColorClass } from '../../utils/stockMath';
+
+const tradeTypeOptions: TradeTypeOption[] = [
+  '多-現股交易',
+  '多-現股當沖',
+  '空-現股當沖',
+  '多-資買資賣',
+  '多-資買券賣',
+  '空-券賣資買',
+  '空-券賣券買'
+];
 
 export const EditHistoryModal: React.FC = () => {
   const {
@@ -20,6 +30,7 @@ export const EditHistoryModal: React.FC = () => {
   const [shares, setShares] = useState(1000);
   const [buyDate, setBuyDate] = useState('');
   const [sellDate, setSellDate] = useState('');
+  const [tradeType, setTradeType] = useState<TradeTypeOption>('多-現股交易');
   const [realizedPnl, setRealizedPnl] = useState(0);
   const [isManualPnl, setIsManualPnl] = useState(false);
 
@@ -32,6 +43,7 @@ export const EditHistoryModal: React.FC = () => {
       setShares(editingHistoryItem.shares);
       setBuyDate(editingHistoryItem.buyDate);
       setSellDate(editingHistoryItem.sellDate);
+      setTradeType(editingHistoryItem.tradeType || '多-現股交易');
       setRealizedPnl(editingHistoryItem.realizedPnl);
       setIsManualPnl(false);
     }
@@ -40,22 +52,22 @@ export const EditHistoryModal: React.FC = () => {
   // Recalculate PnL automatically unless user manually adjusts PnL
   useEffect(() => {
     if (!isManualPnl && buyPrice > 0 && sellPrice > 0 && shares > 0) {
-      const buyFee = calcTradeDetails(buyPrice, shares, globalDiscount, 20, true).fee;
+      const buyFee = calcTradeDetails(buyPrice, shares, globalDiscount, 20, true, editingHistoryItem?.assetType, tradeType).fee;
       const buyCost = (buyPrice * shares) + buyFee;
 
-      const sellDetails = calcTradeDetails(sellPrice, shares, globalDiscount, 20, false);
+      const sellDetails = calcTradeDetails(sellPrice, shares, globalDiscount, 20, false, editingHistoryItem?.assetType, tradeType);
       const proceeds = (sellPrice * shares) - sellDetails.fee - sellDetails.tax;
       const calculatedPnl = Math.round(proceeds - buyCost);
       setRealizedPnl(calculatedPnl);
     }
-  }, [buyPrice, sellPrice, shares, globalDiscount, isManualPnl]);
+  }, [buyPrice, sellPrice, shares, globalDiscount, isManualPnl, tradeType, editingHistoryItem?.assetType]);
 
   if (!showEditHistoryModal || !editingHistoryItem) return null;
 
   const isLight = themeMode === 'light';
 
   // Calculate return percentage
-  const buyFee = calcTradeDetails(buyPrice, shares, globalDiscount, 20, true).fee;
+  const buyFee = calcTradeDetails(buyPrice, shares, globalDiscount, 20, true, editingHistoryItem.assetType, tradeType).fee;
   const buyCost = (buyPrice * shares) + buyFee;
   const returnPct = buyCost > 0 ? (realizedPnl / buyCost) * 100 : 0;
 
@@ -71,6 +83,7 @@ export const EditHistoryModal: React.FC = () => {
       shares,
       buyDate,
       sellDate,
+      tradeType,
       realizedPnl,
       returnPct: parseFloat(returnPct.toFixed(2))
     };
@@ -120,6 +133,26 @@ export const EditHistoryModal: React.FC = () => {
                 }`}
               />
             </div>
+          </div>
+
+          <div>
+            <label className={`block text-xs mb-1 font-semibold ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>交易類型 (當沖/信用/現股)</label>
+            <select
+              value={tradeType}
+              onChange={(e) => {
+                setTradeType(e.target.value as TradeTypeOption);
+                setIsManualPnl(false);
+              }}
+              className={`w-full border rounded-lg p-2 text-xs font-bold ${
+                isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
+              }`}
+            >
+              {tradeTypeOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
@@ -242,3 +275,4 @@ export const EditHistoryModal: React.FC = () => {
     </div>
   );
 };
+
