@@ -76,7 +76,7 @@ export const ProfitSummaryModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className={`rounded-xl w-full max-w-xs p-4 shadow-2xl space-y-3 relative border transition-colors ${
+      <div className={`rounded-2xl w-full max-w-sm md:max-w-md p-4 md:p-6 shadow-2xl space-y-3 relative border transition-colors ${
         isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-700 text-slate-100'
       }`}>
         

@@ -88,7 +88,7 @@ export const AddHoldingModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className={`rounded-2xl w-full max-w-sm p-4 space-y-3.5 shadow-2xl relative max-h-[90vh] overflow-y-auto border transition-colors ${
+      <div className={`rounded-2xl w-full max-w-md md:max-w-lg lg:max-w-xl p-4 md:p-6 space-y-3.5 shadow-2xl relative max-h-[90vh] overflow-y-auto border transition-colors ${
         isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-800 border-slate-700 text-slate-100'
       }`}>
         <div className={`flex justify-between items-center border-b pb-2 ${isLight ? 'border-slate-200' : 'border-slate-700'}`}>

@@ -89,13 +89,13 @@ export const HistoryTab: React.FC = () => {
         </div>
       </div>
 
-      {/* 歷史清單 */}
+      {/* 歷史清單 (手機 1 欄、iPad 2 欄、PC 3 欄) */}
       {filtered.length === 0 ? (
         <div className={`text-center py-10 font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
           目前時間區間內尚無已平倉紀錄
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 items-start">
           {filtered.map((item) => (
             <div
               key={item.id}

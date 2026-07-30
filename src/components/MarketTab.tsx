@@ -96,8 +96,8 @@ export const MarketTab: React.FC = () => {
           ))}
         </div>
 
-        {/* 國際指數卡片網格 */}
-        <div className="grid grid-cols-2 gap-2 text-xs max-h-96 overflow-y-auto pr-0.5">
+        {/* 國際指數卡片網格 (手機 2 欄、iPad 3 欄、PC 4 欄) */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 text-xs max-h-[500px] overflow-y-auto pr-0.5">
           {filteredIndices.map((idx) => {
             const isUp = idx.change >= 0;
             return (
@@ -108,7 +108,7 @@ export const MarketTab: React.FC = () => {
                 }`}
               >
                 <div className="flex justify-between items-center mb-1">
-                  <span className={`font-extrabold text-xs truncate max-w-[100px] ${isLight ? 'text-slate-800' : 'text-slate-200'}`} title={idx.name}>
+                  <span className={`font-extrabold text-xs truncate max-w-[120px] ${isLight ? 'text-slate-800' : 'text-slate-200'}`} title={idx.name}>
                     {idx.name}
                   </span>
                   {/* 即時 / 盤後 標籤 */}
@@ -144,20 +144,20 @@ export const MarketTab: React.FC = () => {
         )}
       </div>
 
-      {/* 台股熱門個股動態庫 */}
-      <div className={`p-3 rounded-xl border transition-colors shadow-sm ${
+      {/* 台股熱門個股動態庫 (手機 1 欄、iPad 2 欄、PC 3 欄) */}
+      <div className={`p-3 md:p-4 rounded-xl border transition-colors shadow-sm ${
         isLight ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-700'
       }`}>
         <div className="flex justify-between items-center mb-2">
-          <h3 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>熱門台股動態即時價</h3>
+          <h3 className={`text-sm md:text-base font-bold ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>熱門台股動態即時價</h3>
           <span className={`text-[11px] font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>點擊可快速新增</span>
         </div>
-        <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-96 overflow-y-auto pr-1">
           {presetStockList.map((stk) => (
             <div
               key={stk.code}
               onClick={() => handleQuickAdd(stk)}
-              className={`p-2 rounded-lg flex justify-between items-center cursor-pointer transition border ${
+              className={`p-2.5 rounded-lg flex justify-between items-center cursor-pointer transition border ${
                 isLight ? 'bg-slate-50 hover:bg-slate-100 border-slate-200' : 'bg-slate-900 hover:bg-slate-700/60 border-slate-800'
               }`}
             >

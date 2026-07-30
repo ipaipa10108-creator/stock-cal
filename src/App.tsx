@@ -73,100 +73,102 @@ export const App: React.FC = () => {
   const isLight = themeMode === 'light';
 
   return (
-    <div className={`max-w-md mx-auto min-h-screen shadow-2xl flex flex-col relative border-x transition-colors duration-200 font-sans select-none ${
-      isLight ? 'bg-slate-100 text-slate-900 border-slate-200' : 'bg-slate-900 text-slate-100 border-slate-800'
-    }`}>
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow-xl border border-emerald-400 animate-bounce flex items-center space-x-1.5">
-          <i className="fa-solid fa-circle-check"></i>
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
-      {/* 頂部列 Header */}
-      <Header />
-
-      {/* 主要內容區域 */}
-      <main className="flex-1 overflow-y-auto p-3 space-y-3 pb-20">
-        {activeTab === 'holdings' && <HoldingsTab />}
-        {activeTab === 'calculator' && <CalculatorTab />}
-        {activeTab === 'history' && <HistoryTab />}
-        {activeTab === 'market' && <MarketTab />}
-        {activeTab === 'guide' && <GuideTab />}
-        {activeTab === 'settings' && <SettingsTab />}
-      </main>
-
-      {/* 底部導覽列 NAVBAR */}
-      <nav className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto z-30 flex justify-around py-2 text-center text-xs border-t transition-colors ${
-        isLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-slate-800 border-slate-700 text-slate-300'
+    <div className={`min-h-screen w-full transition-colors ${isLight ? 'bg-slate-200/50' : 'bg-slate-950'}`}>
+      <div className={`w-full max-w-md md:max-w-4xl lg:max-w-7xl 2xl:max-w-[1400px] mx-auto min-h-screen shadow-2xl flex flex-col relative md:border-x transition-colors duration-200 font-sans select-none ${
+        isLight ? 'bg-slate-100 text-slate-900 border-slate-300' : 'bg-slate-900 text-slate-100 border-slate-800'
       }`}>
-        <button
-          onClick={() => setActiveTab('holdings')}
-          className={`flex-1 flex flex-col items-center space-y-1 ${
-            activeTab === 'holdings' ? 'text-amber-500 font-bold' : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
-          }`}
-        >
-          <i className="fa-solid fa-box-archive text-base"></i>
-          <span>庫存</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('calculator')}
-          className={`flex-1 flex flex-col items-center space-y-1 ${
-            activeTab === 'calculator' ? 'text-amber-500 font-bold' : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
-          }`}
-        >
-          <i className="fa-solid fa-calculator text-base"></i>
-          <span>試算</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('history')}
-          className={`flex-1 flex flex-col items-center space-y-1 ${
-            activeTab === 'history' ? 'text-amber-500 font-bold' : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
-          }`}
-        >
-          <i className="fa-solid fa-clock-rotate-left text-base"></i>
-          <span>歷史</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('market')}
-          className={`flex-1 flex flex-col items-center space-y-1 ${
-            activeTab === 'market' ? 'text-amber-500 font-bold' : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
-          }`}
-        >
-          <i className="fa-solid fa-globe text-base"></i>
-          <span>指數</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('guide')}
-          className={`flex-1 flex flex-col items-center space-y-1 ${
-            activeTab === 'guide' ? 'text-amber-500 font-bold' : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
-          }`}
-        >
-          <i className="fa-solid fa-graduation-cap text-base"></i>
-          <span>教學</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('settings')}
-          className={`flex-1 flex flex-col items-center space-y-1 ${
-            activeTab === 'settings' ? 'text-amber-500 font-bold' : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
-          }`}
-        >
-          <i className="fa-solid fa-sliders text-base"></i>
-          <span>設定</span>
-        </button>
-      </nav>
+        {/* Toast Notification */}
+        {toastMessage && (
+          <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow-xl border border-emerald-400 animate-bounce flex items-center space-x-1.5">
+            <i className="fa-solid fa-circle-check"></i>
+            <span>{toastMessage}</span>
+          </div>
+        )}
 
-      {/* 彈窗 Modals */}
-      <AddHoldingModal />
-      <TradeTypeModal />
-      <ProfitSummaryModal />
-      <SellModal />
-      <AccountModal />
-      <EditHistoryModal />
-      <ShareModal />
-      <TransferTempModal />
-      <TransferHoldingModal />
+        {/* 頂部列 Header */}
+        <Header />
+
+        {/* 主要內容區域 */}
+        <main className="flex-1 overflow-y-auto p-3 md:p-5 lg:p-6 space-y-4 pb-20 lg:pb-8">
+          {activeTab === 'holdings' && <HoldingsTab />}
+          {activeTab === 'calculator' && <CalculatorTab />}
+          {activeTab === 'history' && <HistoryTab />}
+          {activeTab === 'market' && <MarketTab />}
+          {activeTab === 'guide' && <GuideTab />}
+          {activeTab === 'settings' && <SettingsTab />}
+        </main>
+
+        {/* 底部導覽列 NAVBAR (行動版 & iPad 顯示，PC 寬螢幕隱藏) */}
+        <nav className={`fixed bottom-0 left-0 right-0 w-full max-w-md md:max-w-4xl mx-auto z-30 flex justify-around py-2 md:py-3 text-center text-xs md:text-sm border-t transition-colors lg:hidden ${
+          isLight ? 'bg-white/95 backdrop-blur-md border-slate-200 text-slate-700' : 'bg-slate-800/95 backdrop-blur-md border-slate-700 text-slate-300'
+        }`}>
+          <button
+            onClick={() => setActiveTab('holdings')}
+            className={`flex-1 flex flex-col items-center space-y-1 ${
+              activeTab === 'holdings' ? 'text-amber-500 font-bold' : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
+            }`}
+          >
+            <i className="fa-solid fa-box-archive text-base md:text-lg"></i>
+            <span>庫存</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('calculator')}
+            className={`flex-1 flex flex-col items-center space-y-1 ${
+              activeTab === 'calculator' ? 'text-amber-500 font-bold' : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
+            }`}
+          >
+            <i className="fa-solid fa-calculator text-base md:text-lg"></i>
+            <span>試算</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`flex-1 flex flex-col items-center space-y-1 ${
+              activeTab === 'history' ? 'text-amber-500 font-bold' : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
+            }`}
+          >
+            <i className="fa-solid fa-clock-rotate-left text-base md:text-lg"></i>
+            <span>歷史</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('market')}
+            className={`flex-1 flex flex-col items-center space-y-1 ${
+              activeTab === 'market' ? 'text-amber-500 font-bold' : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
+            }`}
+          >
+            <i className="fa-solid fa-globe text-base md:text-lg"></i>
+            <span>指數</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('guide')}
+            className={`flex-1 flex flex-col items-center space-y-1 ${
+              activeTab === 'guide' ? 'text-amber-500 font-bold' : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
+            }`}
+          >
+            <i className="fa-solid fa-graduation-cap text-base md:text-lg"></i>
+            <span>教學</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`flex-1 flex flex-col items-center space-y-1 ${
+              activeTab === 'settings' ? 'text-amber-500 font-bold' : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
+            }`}
+          >
+            <i className="fa-solid fa-sliders text-base md:text-lg"></i>
+            <span>設定</span>
+          </button>
+        </nav>
+
+        {/* 彈窗 Modals */}
+        <AddHoldingModal />
+        <TradeTypeModal />
+        <ProfitSummaryModal />
+        <SellModal />
+        <AccountModal />
+        <EditHistoryModal />
+        <ShareModal />
+        <TransferTempModal />
+        <TransferHoldingModal />
+      </div>
     </div>
   );
 };

@@ -153,7 +153,7 @@ export const HoldingsTab: React.FC = () => {
       </div>
 
       {/* 分類與排序列 */}
-      <div className={`flex items-center justify-between p-1.5 rounded-lg border transition ${
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-1.5 rounded-lg border transition ${
         isLight ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-700'
       }`}>
         <div className="flex space-x-1">
@@ -175,7 +175,7 @@ export const HoldingsTab: React.FC = () => {
         {/* 排序按鈕 */}
         <button
           onClick={toggleSort}
-          className={`text-xs px-2 py-1 rounded flex items-center space-x-1 transition font-bold ${
+          className={`text-xs px-2 py-1 rounded flex items-center justify-center space-x-1 transition font-bold ${
             isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
           }`}
           title="切換排序方式 (釘選項目固定維持最頂端)"
@@ -185,7 +185,7 @@ export const HoldingsTab: React.FC = () => {
         </button>
       </div>
 
-      {/* 庫存列表 */}
+      {/* 庫存列表 (網格呈現：手機 1 欄、iPad 2 欄、PC 3 欄) */}
       {sortedList.length === 0 ? (
         <div className={`text-center py-12 space-y-3 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
           <i className="fa-solid fa-folder-open text-4xl text-slate-400"></i>
@@ -207,7 +207,7 @@ export const HoldingsTab: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="space-y-2.5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 items-start">
           {sortedList.map((item) => {
             const disc = item.discount !== undefined ? item.discount : globalDiscount;
             const breakEven = calcBreakEvenPrice(
