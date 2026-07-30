@@ -108,7 +108,7 @@ export const SellModal: React.FC = () => {
 
         <div className="flex space-x-2 pt-1">
           <button
-            onClick={confirmSell}
+            onClick={() => confirmSell(price, shares, date)}
             className="flex-1 bg-amber-600 hover:bg-amber-500 text-white py-2.5 rounded-xl font-bold text-sm shadow transition"
           >
             確認平倉賣出

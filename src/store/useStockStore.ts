@@ -128,7 +128,7 @@ interface StockStore {
   sellTarget: HoldingItem | null;
   sellForm: { price: number; shares: number; date: string };
   openSellModal: (item: HoldingItem) => void;
-  confirmSell: () => void;
+  confirmSell: (overridePrice?: number, overrideShares?: number, overrideDate?: string) => void;
 
   // Holding CRUD
   openAddModal: () => void;
@@ -159,6 +159,79 @@ const todayStr = new Date().toISOString().split('T')[0];
 
 let addSearchTicket = 0;
 let calcSearchTicket = 0;
+
+const restoreLotsToHoldings = (
+  accId: string,
+  symbol: string,
+  name: string,
+  lotsToReturn: HoldingLot[],
+  tradeType?: TradeTypeOption,
+  assetType?: AssetType,
+  discount?: number,
+  minFee?: number,
+  getStore?: () => StockStore,
+  setStore?: (state: Partial<StockStore> | ((state: StockStore) => Partial<StockStore>)) => void
+) => {
+  if (!lotsToReturn || lotsToReturn.length === 0) return;
+  const holdings = { ...getStore!().holdingsData };
+  if (!holdings[accId]) holdings[accId] = [];
+
+  const totalReturnedShares = lotsToReturn.reduce((sum, l) => sum + l.shares, 0);
+  if (totalReturnedShares <= 0) return;
+
+  const existingIdx = holdings[accId].findIndex(
+    h => h.symbol.toUpperCase() === symbol.toUpperCase() && 
+         (!tradeType || h.tradeType === tradeType)
+  );
+
+  if (existingIdx !== -1) {
+    const existing = holdings[accId][existingIdx];
+    const existingLots = existing.lots && existing.lots.length > 0
+      ? existing.lots
+      : [{
+          id: 'lot-' + existing.id,
+          buyPrice: existing.buyPrice,
+          shares: existing.shares,
+          date: existing.date,
+          tradeType: existing.tradeType
+        }];
+
+    const mergedLots = [...existingLots, ...lotsToReturn];
+    const totalShares = existing.shares + totalReturnedShares;
+    const totalCost = mergedLots.reduce((sum, l) => sum + (l.buyPrice * l.shares), 0);
+    const weightedPrice = parseFloat((totalCost / totalShares).toFixed(2));
+
+    holdings[accId][existingIdx] = {
+      ...existing,
+      shares: totalShares,
+      buyPrice: weightedPrice,
+      lots: mergedLots
+    };
+  } else {
+    const totalCost = lotsToReturn.reduce((sum, l) => sum + (l.buyPrice * l.shares), 0);
+    const weightedPrice = parseFloat((totalCost / totalReturnedShares).toFixed(2));
+    const curPrice = getStore!().fullStockMap[symbol]?.price || weightedPrice;
+
+    const newHolding: HoldingItem = {
+      id: 'h-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+      symbol,
+      name,
+      buyPrice: weightedPrice,
+      currentPrice: curPrice,
+      shares: totalReturnedShares,
+      discount: discount !== undefined ? discount : getStore!().globalDiscount,
+      minFee: minFee || 20,
+      assetType: assetType || (symbol.startsWith('00') ? 'ETF' : '股票'),
+      tradeType: tradeType || '多-現股交易',
+      date: lotsToReturn[0]?.date || todayStr,
+      lots: lotsToReturn
+    };
+
+    holdings[accId].unshift(newHolding);
+  }
+
+  setStore!({ holdingsData: holdings });
+};
 
 export const useStockStore = create<StockStore>((set, get) => ({
   activeTab: 'holdings',
@@ -221,28 +294,186 @@ export const useStockStore = create<StockStore>((set, get) => ({
   updateHistoryItem: (item) => {
     const accId = get().currentAccountId;
     const history = { ...get().historyData };
-    if (history[accId]) {
-      const idx = history[accId].findIndex(h => h.id === item.id);
-      if (idx !== -1) {
-        history[accId][idx] = item;
-        set({ historyData: history, showEditHistoryModal: false, editingHistoryItem: null });
-        get().saveToStorage();
-        get().setToastMessage('已成功更新歷史交易紀錄！');
-        setTimeout(() => get().setToastMessage(null), 2500);
+    const currentList = history[accId] || [];
+    const idx = currentList.findIndex(h => h.id === item.id);
+    if (idx === -1) return;
+
+    const oldItem = currentList[idx];
+    const oldShares = oldItem.shares;
+    const newShares = item.shares;
+    const delta = oldShares - newShares;
+
+    let finalItem: HistoryItem = { ...item };
+
+    if (delta > 0) {
+      // User reduced sold shares => return delta shares to inventory
+      const oldLots: HoldingLot[] = oldItem.lots && oldItem.lots.length > 0
+        ? oldItem.lots.map(l => ({ ...l }))
+        : [{
+            id: 'lot-' + oldItem.id,
+            buyPrice: oldItem.buyPrice,
+            shares: oldItem.shares,
+            date: oldItem.buyDate,
+            tradeType: oldItem.tradeType || '多-現股交易'
+          }];
+
+      let remSold = newShares;
+      const soldLots: HoldingLot[] = [];
+      const returnedLots: HoldingLot[] = [];
+
+      for (const lot of oldLots) {
+        if (remSold >= lot.shares) {
+          soldLots.push({ ...lot });
+          remSold -= lot.shares;
+        } else if (remSold > 0) {
+          soldLots.push({ ...lot, shares: remSold });
+          returnedLots.push({ ...lot, shares: lot.shares - remSold });
+          remSold = 0;
+        } else {
+          returnedLots.push({ ...lot });
+        }
       }
+
+      if (soldLots.length > 0) {
+        const soldCost = soldLots.reduce((sum, l) => sum + (l.buyPrice * l.shares), 0);
+        finalItem.buyPrice = parseFloat((soldCost / newShares).toFixed(2));
+        finalItem.lots = soldLots;
+      } else {
+        finalItem.lots = undefined;
+      }
+
+      history[accId][idx] = finalItem;
+      set({ historyData: history });
+
+      restoreLotsToHoldings(
+        accId,
+        oldItem.symbol,
+        oldItem.name,
+        returnedLots,
+        oldItem.tradeType,
+        oldItem.assetType,
+        oldItem.discount,
+        oldItem.minFee,
+        get,
+        set
+      );
+
+      get().saveToStorage();
+      get().setToastMessage(`已更新歷史紀錄，並將退回的 ${delta} 股返還至庫存！`);
+      setTimeout(() => get().setToastMessage(null), 3000);
+    } else if (delta < 0) {
+      // User increased sold shares => deduct extra shares from inventory if available
+      const extraNeeded = Math.abs(delta);
+      const holdings = { ...get().holdingsData };
+      const hList = holdings[accId] || [];
+      const hIdx = hList.findIndex(h => h.symbol.toUpperCase() === item.symbol.toUpperCase());
+
+      if (hIdx !== -1) {
+        const targetHolding = hList[hIdx];
+        const targetLots = targetHolding.lots && targetHolding.lots.length > 0
+          ? targetHolding.lots.map(l => ({ ...l }))
+          : [{
+              id: 'lot-' + targetHolding.id,
+              buyPrice: targetHolding.buyPrice,
+              shares: targetHolding.shares,
+              date: targetHolding.date,
+              tradeType: targetHolding.tradeType
+            }];
+
+        let remDeduct = extraNeeded;
+        const extraConsumedLots: HoldingLot[] = [];
+        const remHoldingLots: HoldingLot[] = [];
+
+        for (const lot of targetLots) {
+          if (remDeduct <= 0) {
+            remHoldingLots.push({ ...lot });
+          } else if (lot.shares <= remDeduct) {
+            extraConsumedLots.push({ ...lot });
+            remDeduct -= lot.shares;
+          } else {
+            extraConsumedLots.push({ ...lot, shares: remDeduct });
+            remHoldingLots.push({ ...lot, shares: lot.shares - remDeduct });
+            remDeduct = 0;
+          }
+        }
+
+        const existingSoldLots = oldItem.lots && oldItem.lots.length > 0
+          ? oldItem.lots
+          : [{ id: 'lot-old-' + oldItem.id, buyPrice: oldItem.buyPrice, shares: oldItem.shares, date: oldItem.buyDate }];
+
+        const allSoldLots = [...existingSoldLots, ...extraConsumedLots];
+        const newSoldCost = allSoldLots.reduce((sum, l) => sum + (l.buyPrice * l.shares), 0);
+        finalItem.buyPrice = parseFloat((newSoldCost / newShares).toFixed(2));
+        finalItem.lots = allSoldLots;
+
+        if (targetHolding.shares <= extraNeeded) {
+          hList.splice(hIdx, 1);
+        } else {
+          const remainingShares = targetHolding.shares - extraNeeded;
+          const remainingCost = remHoldingLots.reduce((sum, l) => sum + (l.buyPrice * l.shares), 0);
+          targetHolding.shares = remainingShares;
+          targetHolding.buyPrice = parseFloat((remainingCost / remainingShares).toFixed(2));
+          targetHolding.lots = remHoldingLots;
+        }
+
+        holdings[accId] = hList;
+        set({ holdingsData: holdings });
+      }
+
+      history[accId][idx] = finalItem;
+      set({ historyData: history });
+      get().saveToStorage();
+      get().setToastMessage('已成功更新歷史交易紀錄！');
+      setTimeout(() => get().setToastMessage(null), 2500);
+    } else {
+      history[accId][idx] = finalItem;
+      set({ historyData: history });
+      get().saveToStorage();
+      get().setToastMessage('已成功更新歷史交易紀錄！');
+      setTimeout(() => get().setToastMessage(null), 2500);
     }
+
+    set({ showEditHistoryModal: false, editingHistoryItem: null });
   },
   deleteHistoryItem: (id) => {
     if (confirm('確定要刪除這筆歷史交易紀錄嗎？')) {
       const accId = get().currentAccountId;
       const history = { ...get().historyData };
-      if (history[accId]) {
-        history[accId] = history[accId].filter(h => h.id !== id);
-        set({ historyData: history });
-        get().saveToStorage();
-        get().setToastMessage('已刪除歷史交易紀錄！');
-        setTimeout(() => get().setToastMessage(null), 2500);
-      }
+      const currentList = history[accId] || [];
+      const itemIdx = currentList.findIndex(h => h.id === id);
+      if (itemIdx === -1) return;
+
+      const item = currentList[itemIdx];
+
+      const lotsToReturn: HoldingLot[] = item.lots && item.lots.length > 0
+        ? item.lots.map(l => ({ ...l }))
+        : [{
+            id: 'lot-ret-' + Date.now(),
+            buyPrice: item.buyPrice,
+            shares: item.shares,
+            date: item.buyDate,
+            tradeType: item.tradeType || '多-現股交易'
+          }];
+
+      history[accId].splice(itemIdx, 1);
+      set({ historyData: history });
+
+      restoreLotsToHoldings(
+        accId,
+        item.symbol,
+        item.name,
+        lotsToReturn,
+        item.tradeType,
+        item.assetType,
+        item.discount,
+        item.minFee,
+        get,
+        set
+      );
+
+      get().saveToStorage();
+      get().setToastMessage(`已刪除歷史紀錄，並將 ${item.shares} 股完整退回至庫存！`);
+      setTimeout(() => get().setToastMessage(null), 3000);
     }
   },
 
@@ -871,36 +1102,97 @@ export const useStockStore = create<StockStore>((set, get) => ({
       showSellModal: true
     });
   },
-  confirmSell: () => {
+  confirmSell: (overridePrice?: number, overrideShares?: number, overrideDate?: string) => {
     const target = get().sellTarget;
     if (!target) return;
     const accId = get().currentAccountId;
-    const s = get().sellForm.shares;
-    const p = get().sellForm.price;
+    const p = overridePrice !== undefined ? overridePrice : get().sellForm.price;
+    let s = overrideShares !== undefined ? overrideShares : get().sellForm.shares;
+    const sellDate = overrideDate || get().sellForm.date || todayStr;
+
+    if (s <= 0 || p <= 0) {
+      alert('請輸入有效的賣出價格與股數');
+      return;
+    }
+
+    if (s > target.shares) {
+      s = target.shares;
+    }
+
+    const targetLots: HoldingLot[] = target.lots && target.lots.length > 0
+      ? target.lots.map(l => ({ ...l }))
+      : [{
+          id: 'lot-' + target.id,
+          buyPrice: target.buyPrice,
+          shares: target.shares,
+          date: target.date,
+          tradeType: target.tradeType
+        }];
+
+    let remainingSellShares = s;
+    const consumedLots: HoldingLot[] = [];
+    const remainingLots: HoldingLot[] = [];
+
+    for (const lot of targetLots) {
+      if (remainingSellShares <= 0) {
+        remainingLots.push({ ...lot });
+      } else if (lot.shares <= remainingSellShares) {
+        consumedLots.push({ ...lot });
+        remainingSellShares -= lot.shares;
+      } else {
+        consumedLots.push({
+          ...lot,
+          shares: remainingSellShares
+        });
+        remainingLots.push({
+          ...lot,
+          shares: lot.shares - remainingSellShares
+        });
+        remainingSellShares = 0;
+      }
+    }
+
+    const totalConsumedCost = consumedLots.reduce((sum, l) => sum + (l.buyPrice * l.shares), 0);
+    const avgSoldBuyPrice = s > 0 ? parseFloat((totalConsumedCost / s).toFixed(2)) : target.buyPrice;
+
     const itemDisc = target.discount !== undefined ? target.discount : get().globalDiscount;
 
-    const buyFee = calcTradeDetails(target.buyPrice, s, itemDisc, target.minFee || 20, true, target.assetType, target.tradeType, get().globalDiscount).fee;
-    const buyCost = (target.buyPrice * s) + buyFee;
+    const buyFee = calcTradeDetails(avgSoldBuyPrice, s, itemDisc, target.minFee || 20, true, target.assetType, target.tradeType, get().globalDiscount).fee;
+    const buyCost = (avgSoldBuyPrice * s) + buyFee;
 
     const sellDetails = calcTradeDetails(p, s, itemDisc, target.minFee || 20, false, target.assetType, target.tradeType, get().globalDiscount);
     const proceeds = (p * s) - sellDetails.fee - sellDetails.tax;
     const realizedPnl = proceeds - buyCost;
     const returnPct = buyCost > 0 ? (realizedPnl / buyCost) * 100 : 0;
 
+    const buyDateStr = consumedLots.length > 0
+      ? (consumedLots.length === 1 
+          ? consumedLots[0].date 
+          : `${consumedLots.reduce((min, l) => l.date < min ? l.date : min, consumedLots[0].date)} ~ ${consumedLots.reduce((max, l) => l.date > max ? l.date : max, consumedLots[0].date)}`)
+      : target.date;
+
     const history = { ...get().historyData };
     if (!history[accId]) history[accId] = [];
-    history[accId].unshift({
+
+    const newHistoryItem: HistoryItem = {
       id: 'his-' + Date.now(),
       symbol: target.symbol,
       name: target.name,
-      buyPrice: target.buyPrice,
+      buyPrice: avgSoldBuyPrice,
       sellPrice: p,
       shares: s,
-      realizedPnl,
-      returnPct,
-      buyDate: target.date,
-      sellDate: get().sellForm.date
-    });
+      realizedPnl: Math.round(realizedPnl),
+      returnPct: parseFloat(returnPct.toFixed(2)),
+      buyDate: buyDateStr,
+      sellDate: sellDate,
+      tradeType: target.tradeType,
+      assetType: target.assetType,
+      discount: target.discount,
+      minFee: target.minFee,
+      lots: consumedLots
+    };
+
+    history[accId].unshift(newHistoryItem);
 
     const holdings = { ...get().holdingsData };
     const list = holdings[accId] || [];
@@ -909,7 +1201,17 @@ export const useStockStore = create<StockStore>((set, get) => ({
       if (list[idx].shares <= s) {
         list.splice(idx, 1);
       } else {
-        list[idx].shares -= s;
+        const newShares = list[idx].shares - s;
+        const newAvgBuyPrice = remainingLots.length > 0
+          ? parseFloat((remainingLots.reduce((sum, l) => sum + (l.buyPrice * l.shares), 0) / newShares).toFixed(2))
+          : list[idx].buyPrice;
+
+        list[idx] = {
+          ...list[idx],
+          shares: newShares,
+          buyPrice: newAvgBuyPrice,
+          lots: remainingLots
+        };
       }
     }
 
@@ -920,6 +1222,8 @@ export const useStockStore = create<StockStore>((set, get) => ({
       sellTarget: null
     });
     get().saveToStorage();
+    get().setToastMessage(`已成功平倉賣出【${target.symbol} ${target.name}】 ${s} 股！`);
+    setTimeout(() => get().setToastMessage(null), 3000);
   },
 
   openAddModal: () => {

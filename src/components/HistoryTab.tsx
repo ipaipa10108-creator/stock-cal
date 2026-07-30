@@ -127,9 +127,26 @@ export const HistoryTab: React.FC = () => {
                   </div>
                   <div className={`text-xs font-bold ${getPnlColorClass(item.realizedPnl)}`}>
                     {formatPct(item.returnPct)}
+              </div>
+
+              {item.lots && item.lots.length > 1 && (
+                <div className={`p-2 rounded-lg text-xs border space-y-1 ${
+                  isLight ? 'bg-amber-50/70 border-amber-200 text-amber-900' : 'bg-slate-900/80 border-amber-500/30 text-amber-200'
+                }`}>
+                  <div className="font-bold flex items-center space-x-1 text-[11px]">
+                    <i className="fa-solid fa-list-check text-amber-500"></i>
+                    <span>包含 {item.lots.length} 筆合併平倉紀錄：</span>
+                  </div>
+                  <div className="divide-y divide-amber-200/30 text-[11px]">
+                    {item.lots.map((lot, idx) => (
+                      <div key={lot.id || idx} className="py-0.5 flex justify-between">
+                        <span>第 {idx + 1} 筆 買入: <strong>{lot.date}</strong> (${lot.buyPrice})</span>
+                        <span>賣出股數: <strong>{formatNum(lot.shares)}股</strong></span>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
+              )}
 
               <div className={`flex justify-between items-center text-xs pt-1.5 border-t ${
                 isLight ? 'border-slate-100 text-slate-500' : 'border-slate-700/50 text-slate-400'

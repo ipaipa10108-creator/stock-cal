@@ -72,6 +72,11 @@ export interface HistoryItem {
   returnPct: number;
   buyDate: string;
   sellDate: string;
+  tradeType?: TradeTypeOption;
+  assetType?: AssetType;
+  discount?: number;
+  minFee?: number;
+  lots?: HoldingLot[];
 }
 
 export interface Account {
