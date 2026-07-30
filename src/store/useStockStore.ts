@@ -497,15 +497,13 @@ export const useStockStore = create<StockStore>((set, get) => ({
     const item = currentList[itemIdx];
 
     if (confirm(`確定要將【${item.symbol} ${item.name} (${item.shares} 股)】的賣出平倉紀錄退回庫存嗎？`)) {
-      const lotsToReturn: HoldingLot[] = item.lots && item.lots.length > 0
-        ? item.lots.map(l => ({ ...l }))
-        : [{
-            id: 'lot-ret-' + Date.now(),
-            buyPrice: item.buyPrice,
-            shares: item.shares,
-            date: item.buyDate,
-            tradeType: item.tradeType || '多-現股交易'
-          }];
+      const lotsToReturn: HoldingLot[] = [{
+        id: 'lot-ret-' + Date.now(),
+        buyPrice: item.buyPrice,
+        shares: item.shares,
+        date: item.buyDate,
+        tradeType: item.tradeType || '多-現股交易'
+      }];
 
       history[accId].splice(itemIdx, 1);
       set({ historyData: history });
@@ -1238,41 +1236,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
       s = target.shares;
     }
 
-    const targetLots: HoldingLot[] = target.lots && target.lots.length > 0
-      ? target.lots.map(l => ({ ...l }))
-      : [{
-          id: 'lot-' + target.id,
-          buyPrice: target.buyPrice,
-          shares: target.shares,
-          date: target.date,
-          tradeType: target.tradeType
-        }];
-
-    let remainingSellShares = s;
-    const consumedLots: HoldingLot[] = [];
-    const remainingLots: HoldingLot[] = [];
-
-    for (const lot of targetLots) {
-      if (remainingSellShares <= 0) {
-        remainingLots.push({ ...lot });
-      } else if (lot.shares <= remainingSellShares) {
-        consumedLots.push({ ...lot });
-        remainingSellShares -= lot.shares;
-      } else {
-        consumedLots.push({
-          ...lot,
-          shares: remainingSellShares
-        });
-        remainingLots.push({
-          ...lot,
-          shares: lot.shares - remainingSellShares
-        });
-        remainingSellShares = 0;
-      }
-    }
-
-    const totalConsumedCost = consumedLots.reduce((sum, l) => sum + (l.buyPrice * l.shares), 0);
-    const avgSoldBuyPrice = s > 0 ? parseFloat((totalConsumedCost / s).toFixed(2)) : target.buyPrice;
+    const avgSoldBuyPrice = target.buyPrice;
 
     const itemDisc = target.discount !== undefined ? target.discount : get().globalDiscount;
 
@@ -1284,11 +1248,13 @@ export const useStockStore = create<StockStore>((set, get) => ({
     const realizedPnl = proceeds - buyCost;
     const returnPct = buyCost > 0 ? (realizedPnl / buyCost) * 100 : 0;
 
-    const buyDateStr = consumedLots.length > 0
-      ? (consumedLots.length === 1 
-          ? consumedLots[0].date 
-          : `${consumedLots.reduce((min, l) => l.date < min ? l.date : min, consumedLots[0].date)} ~ ${consumedLots.reduce((max, l) => l.date > max ? l.date : max, consumedLots[0].date)}`)
-      : target.date;
+    const consumedLots: HoldingLot[] = [{
+      id: 'lot-sold-' + Date.now(),
+      buyPrice: avgSoldBuyPrice,
+      shares: s,
+      date: sellDate,
+      tradeType: target.tradeType
+    }];
 
     const history = { ...get().historyData };
     if (!history[accId]) history[accId] = [];
@@ -1313,7 +1279,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
       shares: s,
       realizedPnl: Math.round(realizedPnl),
       returnPct: parseFloat(returnPct.toFixed(2)),
-      buyDate: buyDateStr,
+      buyDate: target.date,
       sellDate: sellDate,
       tradeType: target.tradeType,
       assetType: target.assetType,
@@ -1332,11 +1298,37 @@ export const useStockStore = create<StockStore>((set, get) => ({
       if (list[idx].shares <= s) {
         list.splice(idx, 1);
       } else {
-        const newShares = list[idx].shares - s;
+        const oldShares = list[idx].shares;
+        const newShares = oldShares - s;
+        const ratio = newShares / oldShares;
+
+        let scaledLots: HoldingLot[] | undefined = undefined;
+        if (list[idx].lots && list[idx].lots!.length > 0) {
+          let sumAllocated = 0;
+          const originalLots = list[idx].lots!;
+          scaledLots = originalLots.map((l, i) => {
+            let lotShares = Math.round(l.shares * ratio);
+            if (i === originalLots.length - 1) {
+              lotShares = newShares - sumAllocated;
+            } else {
+              sumAllocated += lotShares;
+            }
+            return {
+              ...l,
+              shares: Math.max(1, lotShares)
+            };
+          });
+        }
+
+        const newAvgPrice = scaledLots && scaledLots.length > 0
+          ? parseFloat((scaledLots.reduce((sum, l) => sum + (l.buyPrice * l.shares), 0) / newShares).toFixed(2))
+          : list[idx].buyPrice;
 
         list[idx] = {
           ...list[idx],
           shares: newShares,
+          buyPrice: newAvgPrice,
+          lots: scaledLots || list[idx].lots,
           activityLogs: [sellLog, ...(list[idx].activityLogs || [])]
         };
       }
