@@ -133,7 +133,8 @@ export const CalculatorTab: React.FC = () => {
                 type="number"
                 step="0.01"
                 value={calcForm.buyPrice || ''}
-                onChange={(e) => setCalcForm({ buyPrice: parseFloat(e.target.value) || 0 })}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => setCalcForm({ buyPrice: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                 className={`w-full border rounded-lg p-2 text-sm font-bold ${
                   isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
                 }`}
@@ -145,7 +146,8 @@ export const CalculatorTab: React.FC = () => {
                 type="number"
                 step="0.01"
                 value={calcForm.sellPrice || ''}
-                onChange={(e) => setCalcForm({ sellPrice: parseFloat(e.target.value) || 0 })}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => setCalcForm({ sellPrice: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                 className={`w-full border rounded-lg p-2 text-sm font-bold ${
                   isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
                 }`}
@@ -158,7 +160,8 @@ export const CalculatorTab: React.FC = () => {
                 type="number"
                 step="1"
                 value={calcForm.buyShares || ''}
-                onChange={(e) => setCalcForm({ buyShares: parseInt(e.target.value) || 0 })}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => setCalcForm({ buyShares: e.target.value === '' ? 0 : parseInt(e.target.value) })}
                 className={`w-full border rounded-lg p-2 text-sm font-bold ${
                   isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
                 }`}
@@ -170,7 +173,8 @@ export const CalculatorTab: React.FC = () => {
                 type="number"
                 step="1"
                 value={calcForm.sellShares || ''}
-                onChange={(e) => setCalcForm({ sellShares: parseInt(e.target.value) || 0 })}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => setCalcForm({ sellShares: e.target.value === '' ? 0 : parseInt(e.target.value) })}
                 className={`w-full border rounded-lg p-2 text-sm font-bold ${
                   isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
                 }`}
@@ -182,8 +186,9 @@ export const CalculatorTab: React.FC = () => {
               <input
                 type="number"
                 step="0.01"
-                value={calcForm.discount}
-                onChange={(e) => setCalcForm({ discount: parseFloat(e.target.value) || 0 })}
+                value={calcForm.discount ?? ''}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => setCalcForm({ discount: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                 className={`w-full border rounded-lg p-2 text-sm font-bold ${
                   isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
                 }`}

@@ -57,8 +57,9 @@ export const SellModal: React.FC = () => {
             <input
               type="number"
               step="0.01"
-              value={price}
-              onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+              value={price || ''}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => setPrice(e.target.value === '' ? 0 : parseFloat(e.target.value))}
               className={`w-full border rounded-lg p-2 text-sm font-bold ${
                 isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
               }`}
@@ -70,8 +71,9 @@ export const SellModal: React.FC = () => {
               type="number"
               step="1"
               max={sellTarget.shares}
-              value={shares}
-              onChange={(e) => setShares(parseInt(e.target.value) || 0)}
+              value={shares || ''}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => setShares(e.target.value === '' ? 0 : parseInt(e.target.value))}
               className={`w-full border rounded-lg p-2 text-sm font-bold ${
                 isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
               }`}

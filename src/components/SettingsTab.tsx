@@ -218,8 +218,9 @@ export const SettingsTab: React.FC = () => {
             <input
               type="number"
               step="0.01"
-              value={globalDiscount}
-              onChange={(e) => setGlobalDiscount(parseFloat(e.target.value) || 0)}
+              value={globalDiscount || ''}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => setGlobalDiscount(e.target.value === '' ? 0 : parseFloat(e.target.value))}
               className={`w-full border rounded-lg p-2 text-sm font-bold ${
                 isLight ? 'bg-white border-slate-300 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
               }`}
@@ -235,6 +236,7 @@ export const SettingsTab: React.FC = () => {
               type="number"
               placeholder="留空代表 未設定"
               value={accountLimitInput ?? ''}
+              onFocus={(e) => e.target.select()}
               onChange={(e) => {
                 const val = parseFloat(e.target.value);
                 setAccountLimitInput(isNaN(val) ? null : val);

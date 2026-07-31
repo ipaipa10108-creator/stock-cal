@@ -175,7 +175,8 @@ export const AddHoldingModal: React.FC = () => {
               type="number"
               step="0.01"
               value={holdingForm.buyPrice || ''}
-              onChange={(e) => setHoldingForm({ buyPrice: parseFloat(e.target.value) || 0 })}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => setHoldingForm({ buyPrice: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
               className={`w-full border rounded-lg p-2 text-sm font-bold ${
                 isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
               }`}
@@ -187,7 +188,8 @@ export const AddHoldingModal: React.FC = () => {
               type="number"
               step="0.01"
               value={holdingForm.currentPrice || ''}
-              onChange={(e) => setHoldingForm({ currentPrice: parseFloat(e.target.value) || 0 })}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => setHoldingForm({ currentPrice: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
               className={`w-full border rounded-lg p-2 text-sm font-bold ${
                 isLight ? 'bg-slate-50 border-slate-300 text-amber-600' : 'bg-slate-900 border-slate-700 text-amber-400'
               }`}
@@ -200,7 +202,8 @@ export const AddHoldingModal: React.FC = () => {
               type="number"
               step="1"
               value={holdingForm.shares || ''}
-              onChange={(e) => setHoldingForm({ shares: parseInt(e.target.value) || 0 })}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => setHoldingForm({ shares: e.target.value === '' ? 0 : parseInt(e.target.value) })}
               className={`w-full border rounded-lg p-2 text-sm font-bold ${
                 isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
               }`}
@@ -212,7 +215,8 @@ export const AddHoldingModal: React.FC = () => {
               type="number"
               step="0.01"
               value={holdingForm.discount ?? globalDiscount}
-              onChange={(e) => setHoldingForm({ discount: parseFloat(e.target.value) || 0 })}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => setHoldingForm({ discount: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
               className={`w-full border rounded-lg p-2 text-sm font-bold ${
                 isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
               }`}
@@ -262,8 +266,9 @@ export const AddHoldingModal: React.FC = () => {
             <label className={`block text-xs mb-1 font-semibold ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>費用低限</label>
             <input
               type="number"
-              value={holdingForm.minFee}
-              onChange={(e) => setHoldingForm({ minFee: parseInt(e.target.value) || 0 })}
+              value={holdingForm.minFee || ''}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => setHoldingForm({ minFee: e.target.value === '' ? 0 : parseInt(e.target.value) })}
               className={`w-full border rounded-lg p-2 text-sm font-bold ${
                 isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
               }`}
@@ -289,8 +294,9 @@ export const AddHoldingModal: React.FC = () => {
                   type="number"
                   step="0.01"
                   placeholder="即時估計淨值"
-                  value={holdingForm.nav || holdingForm.currentPrice || ''}
-                  onChange={(e) => setHoldingForm({ nav: parseFloat(e.target.value) || 0 })}
+                  value={holdingForm.nav || ''}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => setHoldingForm({ nav: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                   className={`w-28 rounded px-2 py-1 text-xs text-right font-bold focus:outline-none border ${
                     isLight ? 'bg-white border-amber-300 text-amber-800' : 'bg-slate-800 border-amber-500/50 text-amber-300'
                   }`}

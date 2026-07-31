@@ -161,9 +161,10 @@ export const EditHistoryModal: React.FC = () => {
               <input
                 type="number"
                 step="0.01"
-                value={buyPrice}
+                value={buyPrice || ''}
+                onFocus={(e) => e.target.select()}
                 onChange={(e) => {
-                  setBuyPrice(parseFloat(e.target.value) || 0);
+                  setBuyPrice(e.target.value === '' ? 0 : parseFloat(e.target.value));
                   setIsManualPnl(false);
                 }}
                 className={`w-full border rounded-lg p-2 text-xs font-bold ${
@@ -176,9 +177,10 @@ export const EditHistoryModal: React.FC = () => {
               <input
                 type="number"
                 step="0.01"
-                value={sellPrice}
+                value={sellPrice || ''}
+                onFocus={(e) => e.target.select()}
                 onChange={(e) => {
-                  setSellPrice(parseFloat(e.target.value) || 0);
+                  setSellPrice(e.target.value === '' ? 0 : parseFloat(e.target.value));
                   setIsManualPnl(false);
                 }}
                 className={`w-full border rounded-lg p-2 text-xs font-bold ${
@@ -191,9 +193,10 @@ export const EditHistoryModal: React.FC = () => {
               <input
                 type="number"
                 step="1"
-                value={shares}
+                value={shares || ''}
+                onFocus={(e) => e.target.select()}
                 onChange={(e) => {
-                  setShares(parseInt(e.target.value) || 0);
+                  setShares(e.target.value === '' ? 0 : parseInt(e.target.value));
                   setIsManualPnl(false);
                 }}
                 className={`w-full border rounded-lg p-2 text-xs font-bold ${
@@ -243,9 +246,10 @@ export const EditHistoryModal: React.FC = () => {
             <label className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>自訂損益金額:</label>
             <input
               type="number"
-              value={realizedPnl}
+              value={realizedPnl || ''}
+              onFocus={(e) => e.target.select()}
               onChange={(e) => {
-                setRealizedPnl(parseInt(e.target.value) || 0);
+                setRealizedPnl(e.target.value === '' ? 0 : parseInt(e.target.value));
                 setIsManualPnl(true);
               }}
               className={`flex-1 border rounded px-2 py-1 text-xs font-bold ${
