@@ -7,6 +7,7 @@ export const EditLotModal: React.FC = () => {
     closeEditLotModal,
     editingLotTarget,
     updateHoldingLot,
+    deleteHoldingLot,
     themeMode
   } = useStockStore();
 
@@ -43,6 +44,13 @@ export const EditLotModal: React.FC = () => {
       date
     });
     closeEditLotModal();
+  };
+
+  const handleDelete = () => {
+    if (confirm(`確定要刪除這筆${isSell ? '賣出' : '買進'}紀錄嗎？`)) {
+      deleteHoldingLot(editingLotTarget.holdingId, editingLotTarget.lot.id);
+      closeEditLotModal();
+    }
   };
 
   return (
@@ -114,8 +122,17 @@ export const EditLotModal: React.FC = () => {
             </button>
             <button
               type="button"
+              onClick={handleDelete}
+              className="px-3 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition flex items-center space-x-1 shadow"
+              title="刪除此筆明細紀錄"
+            >
+              <i className="fa-solid fa-trash-can"></i>
+              <span>刪除筆記</span>
+            </button>
+            <button
+              type="button"
               onClick={closeEditLotModal}
-              className={`px-4 rounded-xl text-sm transition ${
+              className={`px-3 rounded-xl text-xs transition font-semibold ${
                 isLight ? 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
               }`}
             >

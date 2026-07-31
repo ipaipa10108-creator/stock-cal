@@ -144,6 +144,7 @@ export const SettingsTab: React.FC = () => {
                 { key: 'showBreakEvenPrice', title: '保本價資訊', desc: '考慮買賣雙邊手續費與證交稅後的損益打平參考價格' },
                 { key: 'showFeeTaxDetails', title: '預估賣出交易費用與稅額', desc: '賣出時預估扣除之券商手續費與證券交易稅金額明細' },
                 { key: 'showLotDetails', title: '加權合併筆記明細', desc: '加權合併筆記之各筆買進日期、股數明細與拆回獨立筆記按鈕' },
+                { key: 'showActivityLogs', title: '交易與變更履歷', desc: '記錄賣出均價、還原與加權合併歷史變更動態' },
               ].map(item => (
                 <label
                   key={item.key}

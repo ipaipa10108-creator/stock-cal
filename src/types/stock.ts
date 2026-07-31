@@ -136,4 +136,6 @@ export interface HoldingDisplaySettings {
   showBreakEvenPrice: boolean;    // 保本價 (保本參考價格)
   showFeeTaxDetails: boolean;     // 預估交易費用 (賣出手續費與證交稅)
   showLotDetails: boolean;        // 合併筆記明細 (批次買進明細)
+  showActivityLogs: boolean;      // 交易與變更履歷 (記錄賣出均價與還原履歷)
 }
+

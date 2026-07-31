@@ -45,7 +45,7 @@ export const HoldingsTab: React.FC = () => {
   const currentList = holdingsData[currentAccountId] || [];
   const currentAccountName = accounts.find(a => a.id === currentAccountId)?.name || '目前帳戶';
 
-  const computedHoldings: ComputedHolding[] = currentList.map((item) => {
+  const computedHoldings: ComputedHolding[] = currentList.filter(item => item && item.shares > 0).map((item) => {
     const isShort = item.tradeType && item.tradeType.startsWith('空');
     const disc = item.discount !== undefined ? item.discount : globalDiscount;
 
@@ -441,7 +441,7 @@ export const HoldingsTab: React.FC = () => {
                 )}
 
                 {/* 📜 交易與變更歷史履歷區塊 (何時賣出/買進/還原/價格) */}
-                {item.activityLogs && item.activityLogs.length > 0 && (
+                {holdingDisplaySettings.showActivityLogs && item.activityLogs && item.activityLogs.length > 0 && (
                   <div className={`mt-2 p-2 rounded-lg text-xs border space-y-1 ${
                     isLight ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-slate-900/90 border-slate-700 text-slate-300'
                   }`}>

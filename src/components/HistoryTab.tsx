@@ -8,6 +8,11 @@ export const HistoryTab: React.FC = () => {
     currentAccountId,
     historyFilter,
     setHistoryFilter,
+    historySortField,
+    setHistorySortField,
+    historySortOrder,
+    setHistorySortOrder,
+    toggleHistorySortOrder,
     themeMode,
     openEditHistoryModal,
     deleteHistoryItem,
@@ -18,6 +23,40 @@ export const HistoryTab: React.FC = () => {
 
   const isLight = themeMode === 'light';
   const currentList = historyData[currentAccountId] || [];
+
+  const handleSelectPreset = (preset: 'thisMonth' | '3months' | '6months' | '1year' | 'all') => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+
+    const formatDateStr = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
+    const endStr = formatDateStr(now);
+
+    if (preset === 'thisMonth') {
+      const start = new Date(year, month, 1);
+      setHistoryFilter({ startDate: formatDateStr(start), endDate: endStr });
+    } else if (preset === '3months') {
+      const start = new Date(now);
+      start.setMonth(start.getMonth() - 3);
+      setHistoryFilter({ startDate: formatDateStr(start), endDate: endStr });
+    } else if (preset === '6months') {
+      const start = new Date(now);
+      start.setMonth(start.getMonth() - 6);
+      setHistoryFilter({ startDate: formatDateStr(start), endDate: endStr });
+    } else if (preset === '1year') {
+      const start = new Date(now);
+      start.setFullYear(start.getFullYear() - 1);
+      setHistoryFilter({ startDate: formatDateStr(start), endDate: endStr });
+    } else if (preset === 'all') {
+      setHistoryFilter({ startDate: '', endDate: '' });
+    }
+  };
 
   const filtered = currentList.filter((item) => {
     if (historyFilter.startDate && historyFilter.endDate) {
@@ -35,18 +74,31 @@ export const HistoryTab: React.FC = () => {
     return true;
   });
 
+  const sortedList = [...filtered].sort((a, b) => {
+    const dateA = historySortField === 'sellDate' ? (a.sellDate || '') : (a.buyDate || '');
+    const dateB = historySortField === 'sellDate' ? (b.sellDate || '') : (b.buyDate || '');
+    
+    let cmp = 0;
+    if (dateA !== dateB) {
+      cmp = dateA.localeCompare(dateB);
+    } else {
+      cmp = a.id.localeCompare(b.id);
+    }
+    return historySortOrder === 'asc' ? cmp : -cmp;
+  });
+
   let totalPnl = 0;
   let wins = 0;
   let totalReturn = 0;
 
-  filtered.forEach((i) => {
+  sortedList.forEach((i) => {
     totalPnl += i.realizedPnl;
     totalReturn += i.returnPct;
     if (i.realizedPnl > 0) wins++;
   });
 
-  const avgReturnPct = filtered.length > 0 ? totalReturn / filtered.length : 0;
-  const winRate = filtered.length > 0 ? (wins / filtered.length) * 100 : 0;
+  const avgReturnPct = sortedList.length > 0 ? totalReturn / sortedList.length : 0;
+  const winRate = sortedList.length > 0 ? (wins / sortedList.length) * 100 : 0;
 
   return (
     <div className="space-y-3">
@@ -79,6 +131,7 @@ export const HistoryTab: React.FC = () => {
           </div>
         </div>
 
+        {/* 日期區間輸入 */}
         <div className="flex items-center space-x-2">
           <input
             type="date"
@@ -97,6 +150,67 @@ export const HistoryTab: React.FC = () => {
               isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
             }`}
           />
+        </div>
+
+        {/* 快選日期區間與排序控制列 */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 text-xs">
+          {/* 快選按鈕 (本月、三個月、半年、一年、全部) */}
+          <div className="flex items-center space-x-1 flex-wrap gap-y-1">
+            <span className={`text-[11px] font-bold mr-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>快選:</span>
+            {[
+              { id: 'thisMonth', label: '本月' },
+              { id: '3months', label: '三個月' },
+              { id: '6months', label: '半年' },
+              { id: '1year', label: '一年' },
+              { id: 'all', label: '全部' }
+            ].map(p => (
+              <button
+                key={p.id}
+                onClick={() => handleSelectPreset(p.id as any)}
+                className={`px-2 py-0.5 rounded text-[11px] font-bold transition border ${
+                  isLight
+                    ? 'bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-800 border-slate-300/80'
+                    : 'bg-slate-900 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {/* 排序欄位與正反序切換 */}
+          <div className="flex items-center space-x-1.5">
+            <span className={`text-[11px] font-bold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>排序:</span>
+            <button
+              onClick={() => setHistorySortField('sellDate')}
+              className={`px-2 py-0.5 rounded text-[11px] font-bold transition border ${
+                historySortField === 'sellDate'
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                  : (isLight ? 'bg-slate-100 text-slate-600 border-slate-200' : 'bg-slate-900 text-slate-400 border-slate-700')
+              }`}
+            >
+              賣出時間
+            </button>
+            <button
+              onClick={() => setHistorySortField('buyDate')}
+              className={`px-2 py-0.5 rounded text-[11px] font-bold transition border ${
+                historySortField === 'buyDate'
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                  : (isLight ? 'bg-slate-100 text-slate-600 border-slate-200' : 'bg-slate-900 text-slate-400 border-slate-700')
+              }`}
+            >
+              買入時間
+            </button>
+            <button
+              onClick={toggleHistorySortOrder}
+              className={`px-2 py-0.5 rounded text-[11px] font-extrabold transition border flex items-center space-x-1 ${
+                isLight ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-amber-950/60 text-amber-300 border-amber-700/60'
+              }`}
+              title="點擊切換正序與反序列表"
+            >
+              <span>{historySortOrder === 'desc' ? '反序 ⬇' : '正序 ⬆'}</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -127,13 +241,13 @@ export const HistoryTab: React.FC = () => {
       </div>
 
       {/* 歷史清單 (手機 1 欄、iPad 2 欄、PC 3 欄) */}
-      {filtered.length === 0 ? (
+      {sortedList.length === 0 ? (
         <div className={`text-center py-10 font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
           目前時間區間內尚無已平倉紀錄
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 items-start">
-          {filtered.map((item) => {
+          {sortedList.map((item) => {
             const tradeStyle = getTradeTypeStyle(item.tradeType);
             return (
               <div
@@ -250,5 +364,3 @@ export const HistoryTab: React.FC = () => {
     </div>
   );
 };
-
-

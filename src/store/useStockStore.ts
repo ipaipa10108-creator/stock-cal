@@ -118,6 +118,11 @@ interface StockStore {
   toggleSort: () => void;
   historyFilter: { startDate: string; endDate: string };
   setHistoryFilter: (filter: { startDate: string; endDate: string }) => void;
+  historySortField: 'sellDate' | 'buyDate';
+  setHistorySortField: (field: 'sellDate' | 'buyDate') => void;
+  historySortOrder: 'desc' | 'asc';
+  setHistorySortOrder: (order: 'desc' | 'asc') => void;
+  toggleHistorySortOrder: () => void;
 
   // Forms
   holdingForm: HoldingFormState;
@@ -154,6 +159,7 @@ interface StockStore {
   openEditLotModal: (holdingId: string, lot: HoldingLot) => void;
   closeEditLotModal: () => void;
   updateHoldingLot: (holdingId: string, lotId: string, updated: { buyPrice: number; shares: number; date: string }) => void;
+  deleteHoldingLot: (holdingId: string, lotId: string) => void;
 
   resetCurrentAccountData: () => void;
   importDataFromJson: (parsed: any) => boolean;
@@ -174,7 +180,15 @@ interface StockStore {
   saveToStorage: () => void;
 }
 
-const todayStr = new Date().toISOString().split('T')[0];
+export const getTodayStr = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const todayStr = getTodayStr();
 
 let addSearchTicket = 0;
 let calcSearchTicket = 0;
@@ -317,7 +331,8 @@ export const useStockStore = create<StockStore>((set, get) => ({
     showEtfDiscount: true,
     showBreakEvenPrice: true,
     showFeeTaxDetails: true,
-    showLotDetails: true
+    showLotDetails: true,
+    showActivityLogs: true
   },
   setHoldingDisplaySettings: (settings) => {
     set((state) => ({
@@ -908,8 +923,23 @@ export const useStockStore = create<StockStore>((set, get) => ({
       get().saveToStorage();
     }
   },
-  historyFilter: { startDate: '2026-07-01', endDate: todayStr },
+  historyFilter: { startDate: '2026-07-01', endDate: getTodayStr() },
   setHistoryFilter: (filter) => set({ historyFilter: filter }),
+  historySortField: 'sellDate',
+  setHistorySortField: (field) => {
+    set({ historySortField: field });
+    get().saveToStorage();
+  },
+  historySortOrder: 'desc',
+  setHistorySortOrder: (order) => {
+    set({ historySortOrder: order });
+    get().saveToStorage();
+  },
+  toggleHistorySortOrder: () => {
+    const next = get().historySortOrder === 'desc' ? 'asc' : 'desc';
+    set({ historySortOrder: next });
+    get().saveToStorage();
+  },
 
   // Holding form
   holdingForm: {
@@ -923,7 +953,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
     discount: 0.38,
     assetType: '股票',
     tradeType: '多-現股交易',
-    date: todayStr,
+    date: getTodayStr(),
     minFee: 20
   },
   setHoldingForm: (form) => set((state) => ({ holdingForm: { ...state.holdingForm, ...form } })),
@@ -1177,7 +1207,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
           discount: calcForm.discount,
           assetType: calcForm.assetType,
           tradeType: calcForm.tradeType,
-          date: todayStr,
+          date: getTodayStr(),
           minFee: calcForm.minFee
         },
         showAddModal: true
@@ -1202,7 +1232,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
       id: 'lot-' + Date.now(),
       buyPrice,
       shares,
-      date: todayStr,
+      date: getTodayStr(),
       tradeType
     };
 
@@ -1217,7 +1247,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
       minFee,
       assetType,
       tradeType,
-      date: todayStr,
+      date: getTodayStr(),
       lots: [defaultLot]
     };
 
@@ -1230,11 +1260,11 @@ export const useStockStore = create<StockStore>((set, get) => ({
   },
 
   sellTarget: null,
-  sellForm: { price: 0, shares: 0, date: todayStr },
+  sellForm: { price: 0, shares: 0, date: getTodayStr() },
   openSellModal: (item) => {
     set({
       sellTarget: item,
-      sellForm: { price: item.currentPrice, shares: item.shares, date: todayStr },
+      sellForm: { price: item.currentPrice, shares: item.shares, date: getTodayStr() },
       showSellModal: true
     });
   },
@@ -1244,7 +1274,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
     const accId = get().currentAccountId;
     const p = overridePrice !== undefined ? overridePrice : get().sellForm.price;
     let s = overrideShares !== undefined ? overrideShares : get().sellForm.shares;
-    const sellDate = overrideDate || get().sellForm.date || todayStr;
+    const sellDate = overrideDate || get().sellForm.date || getTodayStr();
 
     if (s <= 0 || p <= 0) {
       alert('請輸入有效的賣出價格與股數');
@@ -1345,13 +1375,17 @@ export const useStockStore = create<StockStore>((set, get) => ({
         const totalBuyCost = buyLots.reduce((sum, l) => sum + (l.buyPrice * l.shares), 0);
         const newAvgPrice = totalBuyShares > 0 ? parseFloat((totalBuyCost / totalBuyShares).toFixed(2)) : list[idx].buyPrice;
 
-        list[idx] = {
-          ...list[idx],
-          shares: netShares > 0 ? netShares : 0,
-          buyPrice: newAvgPrice,
-          lots: updatedLots,
-          activityLogs: [sellLog, ...(list[idx].activityLogs || [])]
-        };
+        if (netShares <= 0) {
+          list.splice(idx, 1);
+        } else {
+          list[idx] = {
+            ...list[idx],
+            shares: netShares,
+            buyPrice: newAvgPrice,
+            lots: updatedLots,
+            activityLogs: [sellLog, ...(list[idx].activityLogs || [])]
+          };
+        }
     }
 
     set({
@@ -1380,7 +1414,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
         discount: get().globalDiscount,
         assetType: '股票',
         tradeType: '多-現股交易',
-        date: todayStr,
+        date: getTodayStr(),
         minFee: 20
       },
       showAddModal: true
@@ -1704,7 +1738,7 @@ export const useStockStore = create<StockStore>((set, get) => ({
     const editLog: HoldingActivityLog = {
       id: 'log-' + Date.now(),
       timestamp: new Date().toISOString(),
-      date: todayStr,
+      date: getTodayStr(),
       action: 'edit_lot',
       shares: updated.shares,
       price: updated.buyPrice,
@@ -1713,9 +1747,19 @@ export const useStockStore = create<StockStore>((set, get) => ({
         : `修改買進紀錄: ${updated.shares.toLocaleString()}股 @ $${updated.buyPrice} (${updated.date})`
     };
 
+    if (netShares <= 0 || updatedLots.length === 0) {
+      list.splice(idx, 1);
+      holdings[accId] = list;
+      set({ holdingsData: holdings });
+      get().saveToStorage();
+      get().setToastMessage(`已更新筆記，剩餘股數為 0，庫存卡片已清理完畢！`);
+      setTimeout(() => get().setToastMessage(null), 3000);
+      return;
+    }
+
     list[idx] = {
       ...item,
-      shares: netShares > 0 ? netShares : 0,
+      shares: netShares,
       buyPrice: weightedPrice,
       lots: updatedLots,
       activityLogs: [editLog, ...(item.activityLogs || [])]
@@ -1724,7 +1768,71 @@ export const useStockStore = create<StockStore>((set, get) => ({
     holdings[accId] = list;
     set({ holdingsData: holdings });
     get().saveToStorage();
-    get().setToastMessage(`已成功修改買進紀錄！加權平均價：$${weightedPrice}`);
+    get().setToastMessage(`已成功修改明細紀錄！加權平均價：$${weightedPrice}`);
+    setTimeout(() => get().setToastMessage(null), 3000);
+  },
+
+  deleteHoldingLot: (holdingId, lotId) => {
+    const accId = get().currentAccountId;
+    const holdings = { ...get().holdingsData };
+    const list = holdings[accId] || [];
+    const idx = list.findIndex(h => h.id === holdingId);
+    if (idx === -1) return;
+
+    const item = list[idx];
+    if (!item.lots) return;
+
+    const lotIdx = item.lots.findIndex(l => l.id === lotId);
+    if (lotIdx === -1) return;
+
+    const targetLot = item.lots[lotIdx];
+    const isSell = !!targetLot.isSellLot;
+    const updatedLots = item.lots.filter(l => l.id !== lotId);
+
+    const buyLots = updatedLots.filter(l => !l.isSellLot);
+    const sellLots = updatedLots.filter(l => l.isSellLot);
+
+    const totalBuyShares = buyLots.reduce((sum, l) => sum + l.shares, 0);
+    const totalSellShares = sellLots.reduce((sum, l) => sum + l.shares, 0);
+    const netShares = totalBuyShares - totalSellShares;
+
+    if (updatedLots.length === 0 || netShares <= 0) {
+      list.splice(idx, 1);
+      holdings[accId] = list;
+      set({ holdingsData: holdings });
+      get().saveToStorage();
+      get().setToastMessage(`已刪除該筆紀錄，庫存卡片已清空！`);
+      setTimeout(() => get().setToastMessage(null), 3000);
+      return;
+    }
+
+    const totalBuyCost = buyLots.reduce((sum, l) => sum + (l.buyPrice * l.shares), 0);
+    const weightedPrice = totalBuyShares > 0 ? parseFloat((totalBuyCost / totalBuyShares).toFixed(2)) : item.buyPrice;
+
+    const deleteLog: HoldingActivityLog = {
+      id: 'log-' + Date.now(),
+      timestamp: new Date().toISOString(),
+      date: getTodayStr(),
+      action: 'edit_lot',
+      shares: targetLot.shares,
+      price: targetLot.buyPrice,
+      note: isSell
+        ? `刪除賣出紀錄: 賣出 ${targetLot.shares.toLocaleString()}股 @ $${targetLot.buyPrice}`
+        : `刪除買進紀錄: ${targetLot.shares.toLocaleString()}股 @ $${targetLot.buyPrice}`
+    };
+
+    list[idx] = {
+      ...item,
+      shares: netShares,
+      buyPrice: weightedPrice,
+      lots: updatedLots,
+      activityLogs: [deleteLog, ...(item.activityLogs || [])]
+    };
+
+    holdings[accId] = list;
+    set({ holdingsData: holdings });
+    get().saveToStorage();
+    get().setToastMessage(`已成功刪除該筆紀錄！最新加權平均價：$${weightedPrice}`);
     setTimeout(() => get().setToastMessage(null), 3000);
   },
 
@@ -1742,7 +1850,11 @@ export const useStockStore = create<StockStore>((set, get) => ({
 
   importDataFromJson: (parsed) => {
     try {
-      const holdings = parsed.holdings || {};
+      const rawHoldings = parsed.holdings || {};
+      const holdings: Record<string, HoldingItem[]> = {};
+      Object.keys(rawHoldings).forEach(aId => {
+        holdings[aId] = (rawHoldings[aId] || []).filter((h: HoldingItem) => h && h.shares > 0);
+      });
       const history = parsed.history || {};
       let accounts: Account[] = parsed.accounts && Array.isArray(parsed.accounts) ? parsed.accounts : get().accounts;
       if (!accounts.some(a => a.id === 'acc-temp')) {
@@ -1795,9 +1907,15 @@ export const useStockStore = create<StockStore>((set, get) => ({
         if (!loadedAccounts.some(a => a.id === 'acc-temp')) {
           loadedAccounts.push({ id: 'acc-temp', name: '臨時帳戶' });
         }
+        const loadedHoldingsRaw = parsed.holdings || {};
+        const holdings: Record<string, HoldingItem[]> = {};
+        Object.keys(loadedHoldingsRaw).forEach(aId => {
+          holdings[aId] = (loadedHoldingsRaw[aId] || []).filter((h: HoldingItem) => h && h.shares > 0);
+        });
+
         set({
           accounts: loadedAccounts,
-          holdingsData: parsed.holdings || {},
+          holdingsData: holdings,
           historyData: parsed.history || {},
           globalDiscount: parsed.discount !== undefined ? parsed.discount : 0.38,
           accountLimitInput: parsed.limit || null,
@@ -1809,13 +1927,15 @@ export const useStockStore = create<StockStore>((set, get) => ({
             showBreakEvenPrice: true,
             showFeeTaxDetails: true,
             showLotDetails: true,
+            showActivityLogs: true,
             ...parsed.holdingDisplaySettings
           } : {
             showTickInfo: true,
             showEtfDiscount: true,
             showBreakEvenPrice: true,
             showFeeTaxDetails: true,
-            showLotDetails: true
+            showLotDetails: true,
+            showActivityLogs: true
           },
           globalIndicesData: parsed.indices && parsed.indices.length > 0 ? parsed.indices : initialGlobalIndices,
           indicesLastUpdated: parsed.indicesLastUpdated || ''
@@ -1836,7 +1956,8 @@ export const useStockStore = create<StockStore>((set, get) => ({
         showEtfDiscount: true,
         showBreakEvenPrice: true,
         showFeeTaxDetails: true,
-        showLotDetails: true
+        showLotDetails: true,
+        showActivityLogs: true
       },
       holdingsData: {
         'acc-1': [
