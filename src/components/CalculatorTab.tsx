@@ -1,6 +1,6 @@
 import React from 'react';
 import { useStockStore } from '../store/useStockStore';
-import { calcTradeDetails, formatNum, formatPct, getPnlColorClass } from '../utils/stockMath';
+import { calcTradeDetails, calcMarginMaintenanceRatio, formatNum, formatPct, getPnlColorClass } from '../utils/stockMath';
 
 export const CalculatorTab: React.FC = () => {
   const {
@@ -46,6 +46,13 @@ export const CalculatorTab: React.FC = () => {
 
   const pnl = totalProceeds - totalCost;
   const returnPct = totalCost > 0 ? (pnl / totalCost) * 100 : 0;
+
+  const marginRatioInfo = calcMarginMaintenanceRatio(
+    calcForm.buyPrice,
+    calcForm.sellPrice > 0 ? calcForm.sellPrice : calcForm.buyPrice,
+    calcForm.buyShares,
+    calcForm.tradeType
+  );
 
   const taxRate = calcForm.assetType === 'ETF' ? 0.001 : (calcForm.tradeType.includes('當沖') ? 0.0015 : 0.003);
   const discountFeeRate = 0.001425 * calcForm.discount;
@@ -295,6 +302,50 @@ export const CalculatorTab: React.FC = () => {
                 <span className="font-black text-base underline">${isNaN(breakEvenPrice) ? '0.00' : breakEvenPrice.toFixed(2)}</span>
               </div>
             </div>
+
+            {/* 信用交易維持率試算卡片 */}
+            {marginRatioInfo && (
+              <div className={`p-3 rounded-xl border space-y-2 mt-3 ${
+                marginRatioInfo.status === 'danger'
+                  ? (isLight ? 'bg-rose-50 border-rose-300 text-rose-900' : 'bg-rose-950/40 border-rose-700/80 text-rose-200')
+                  : marginRatioInfo.status === 'warning'
+                  ? (isLight ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-amber-950/40 border-amber-700/80 text-amber-200')
+                  : (isLight ? 'bg-indigo-50/90 border-indigo-200 text-indigo-950' : 'bg-indigo-950/40 border-indigo-800/80 text-indigo-200')
+              }`}>
+                <div className="flex items-center justify-between border-b pb-1.5 border-current/20">
+                  <div className="flex items-center space-x-1.5 text-xs font-black">
+                    <i className="fa-solid fa-shield-halved text-indigo-500"></i>
+                    <span>{marginRatioInfo.isMarginLong ? '融資維持率試算' : '融券維持率試算'}</span>
+                  </div>
+                  <span className={`px-2 py-0.5 text-[11px] rounded-md font-black shadow-xs ${marginRatioInfo.badgeClass}`}>
+                    {marginRatioInfo.statusLabel} ({marginRatioInfo.formattedRatio})
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs pt-0.5">
+                  <div>
+                    <span className="opacity-75">初始買/賣維持率：</span>
+                    <span className="font-extrabold">{marginRatioInfo.initialRatio.toFixed(2)}%</span>
+                  </div>
+                  <div>
+                    <span className="opacity-75">{marginRatioInfo.isMarginLong ? '融資借款金額：' : '融券擔保品總額：'}</span>
+                    <span className="font-extrabold">${formatNum(marginRatioInfo.loanOrCollateralAmount)}</span>
+                  </div>
+                  <div className="col-span-2 flex items-center justify-between pt-1 border-t border-current/15">
+                    <span className="font-extrabold flex items-center space-x-1">
+                      <i className="fa-solid fa-triangle-exclamation text-amber-500"></i>
+                      <span>130% 斷頭觸發價：</span>
+                    </span>
+                    <span className="font-black text-sm text-rose-500 dark:text-rose-400">
+                      ${marginRatioInfo.liquidationPrice.toFixed(2)}
+                      <span className="text-[10px] font-normal opacity-80 ml-1">
+                        ({marginRatioInfo.isMarginLong ? '跌破' : '漲破'}即被追繳/斷頭)
+                      </span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 一鍵轉為新增庫存按鈕 */}

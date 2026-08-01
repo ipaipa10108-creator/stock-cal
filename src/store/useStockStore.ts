@@ -332,7 +332,8 @@ export const useStockStore = create<StockStore>((set, get) => ({
     showBreakEvenPrice: true,
     showFeeTaxDetails: true,
     showLotDetails: true,
-    showActivityLogs: true
+    showActivityLogs: true,
+    showMarginMaintenanceRatio: true
   },
   setHoldingDisplaySettings: (settings) => {
     set((state) => ({

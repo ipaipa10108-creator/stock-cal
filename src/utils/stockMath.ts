@@ -240,3 +240,212 @@ export const getTradeTypeStyle = (tradeType?: string): TradeTypeStyle => {
   };
 };
 
+export interface MaintenanceRatioResult {
+  ratio: number;                   // 維持率百分比 (e.g. 166.67)
+  formattedRatio: string;          // 格式化字串 (e.g. "166.67%")
+  loanOrCollateralAmount: number; // 融資借款金額 或 融券擔保品總額 (賣出價款 + 保證金)
+  liabilityAmount: number;         // 融資借款金額 或 融券股票當前市值
+  liquidationPrice: number;        // 130% 斷頭追繳觸發價格
+  initialRatio: number;            // 買進/賣出初始維持率
+  status: 'safe' | 'caution' | 'warning' | 'danger'; // 安全 | 觀察 | 預警 | 追繳斷頭
+  statusLabel: string;             // "維持安全" | "警戒觀察" | "追繳預警" | "斷頭追繳"
+  badgeClass: string;              // UI Badge CSS class
+  textClass: string;               // Text color class
+  isMarginLong: boolean;           // 是否為融資
+  isMarginShort: boolean;          // 是否為融券
+  marginRate: number;              // 融資成數 (預設 0.6)
+  shortMarginRate: number;         // 融券保證金成數 (預設 0.9)
+}
+
+/**
+ * 計算單筆信用交易 (融資 / 融券) 之維持率與 130% 斷頭觸發價格
+ */
+export const calcMarginMaintenanceRatio = (
+  buyOrSellPrice: number,
+  currentPrice: number,
+  shares: number,
+  tradeType?: string,
+  marginRate: number = 0.6,     // 融資成數預設 60% (0.6)
+  shortMarginRate: number = 0.9 // 融券保證金成數預設 90% (0.9)
+): MaintenanceRatioResult | null => {
+  if (!tradeType || buyOrSellPrice <= 0 || currentPrice <= 0 || shares <= 0) {
+    return null;
+  }
+
+  const isMarginLong = tradeType.includes('資');
+  const isMarginShort = tradeType.includes('券');
+
+  if (!isMarginLong && !isMarginShort) {
+    return null;
+  }
+
+  let loanOrCollateralAmount = 0;
+  let liabilityAmount = 0;
+  let ratio = 0;
+  let liquidationPrice = 0;
+  let initialRatio = 0;
+
+  if (isMarginLong) {
+    // 融資維持率 = 股票市值 ÷ 融資金額 × 100%
+    // 融資借款金額 = 買價 × 股數 × 0.6
+    loanOrCollateralAmount = buyOrSellPrice * shares * marginRate;
+    liabilityAmount = loanOrCollateralAmount;
+    const currentMarketValue = currentPrice * shares;
+    ratio = loanOrCollateralAmount > 0 ? (currentMarketValue / loanOrCollateralAmount) * 100 : 0;
+    initialRatio = (1 / marginRate) * 100; // ~166.67%
+    // 130% 斷頭觸發價格 = 買價 × 融資成數 × 1.3
+    liquidationPrice = parseFloat((buyOrSellPrice * marginRate * 1.3).toFixed(2));
+  } else {
+    // 融券維持率 = (融券賣出價款 + 融券保證金) ÷ 當前股票市值 × 100%
+    // 融券擔保品總額 = 賣價 × 股數 × (1 + 0.9)
+    loanOrCollateralAmount = buyOrSellPrice * shares * (1 + shortMarginRate);
+    const currentMarketValue = currentPrice * shares;
+    liabilityAmount = currentMarketValue;
+    ratio = currentMarketValue > 0 ? (loanOrCollateralAmount / currentMarketValue) * 100 : 0;
+    initialRatio = (1 + shortMarginRate) * 100; // 190.00%
+    // 130% 斷頭觸發價格 = (賣價 × (1 + 保證金成數)) ÷ 1.3
+    liquidationPrice = parseFloat(((buyOrSellPrice * (1 + shortMarginRate)) / 1.3).toFixed(2));
+  }
+
+  let status: 'safe' | 'caution' | 'warning' | 'danger' = 'safe';
+  let statusLabel = '維持安全';
+  let badgeClass = 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40';
+  let textClass = 'text-emerald-600 dark:text-emerald-400';
+
+  if (ratio < 130) {
+    status = 'danger';
+    statusLabel = '斷頭追繳';
+    badgeClass = 'bg-rose-600 text-white font-black animate-pulse border border-rose-600 shadow-md';
+    textClass = 'text-rose-500 font-extrabold';
+  } else if (ratio < 140) {
+    status = 'warning';
+    statusLabel = '追繳預警';
+    badgeClass = 'bg-amber-500 text-slate-950 font-black border border-amber-400 shadow';
+    textClass = 'text-amber-500 font-bold';
+  } else if (ratio < 160) {
+    status = 'caution';
+    statusLabel = '警戒觀察';
+    badgeClass = 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/40';
+    textClass = 'text-blue-500 font-semibold';
+  }
+
+  return {
+    ratio,
+    formattedRatio: `${ratio.toFixed(2)}%`,
+    loanOrCollateralAmount,
+    liabilityAmount,
+    liquidationPrice,
+    initialRatio,
+    status,
+    statusLabel,
+    badgeClass,
+    textClass,
+    isMarginLong,
+    isMarginShort,
+    marginRate,
+    shortMarginRate
+  };
+};
+
+export interface AccountMaintenanceRatioResult {
+  totalRatio: number;                     // 整戶維持率 (%)
+  formattedTotalRatio: string;            // 格式化百分比 (e.g. "165.20%")
+  totalLongValue: number;                 // 所有融資股票當前市值
+  totalLongLoan: number;                  // 所有融資借款金額
+  totalShortCollateral: number;           // 所有融券擔保品總額 (賣出價款 + 保證金)
+  totalShortMarketValue: number;         // 所有融券股票當前市值
+  totalNumerator: number;                 // 整戶分子 = totalLongValue + totalShortCollateral
+  totalDenominator: number;               // 整戶分母 = totalLongLoan + totalShortMarketValue
+  creditHoldingsCount: number;            // 信用交易筆數
+  status: 'safe' | 'caution' | 'warning' | 'danger';
+  statusLabel: string;
+  badgeClass: string;
+  textClass: string;
+}
+
+/**
+ * 計算整戶信用交易 (融資 + 融券) 擔保維持率
+ */
+export const calcAccountMarginMaintenanceRatio = (
+  holdings: Array<{
+    buyPrice: number;
+    currentPrice: number;
+    shares: number;
+    tradeType?: string;
+  }>,
+  marginRate: number = 0.6,
+  shortMarginRate: number = 0.9
+): AccountMaintenanceRatioResult | null => {
+  let totalLongValue = 0;
+  let totalLongLoan = 0;
+  let totalShortCollateral = 0;
+  let totalShortMarketValue = 0;
+  let creditHoldingsCount = 0;
+
+  holdings.forEach(item => {
+    if (!item.tradeType || item.buyPrice <= 0 || item.currentPrice <= 0 || item.shares <= 0) return;
+
+    const isMarginLong = item.tradeType.includes('資');
+    const isMarginShort = item.tradeType.includes('券');
+
+    if (isMarginLong) {
+      creditHoldingsCount++;
+      const longLoan = item.buyPrice * item.shares * marginRate;
+      const longValue = item.currentPrice * item.shares;
+      totalLongLoan += longLoan;
+      totalLongValue += longValue;
+    } else if (isMarginShort) {
+      creditHoldingsCount++;
+      const shortCollateral = item.buyPrice * item.shares * (1 + shortMarginRate);
+      const shortMarketValue = item.currentPrice * item.shares;
+      totalShortCollateral += shortCollateral;
+      totalShortMarketValue += shortMarketValue;
+    }
+  });
+
+  if (creditHoldingsCount === 0) return null;
+
+  const totalNumerator = totalLongValue + totalShortCollateral;
+  const totalDenominator = totalLongLoan + totalShortMarketValue;
+  const totalRatio = totalDenominator > 0 ? (totalNumerator / totalDenominator) * 100 : 0;
+
+  let status: 'safe' | 'caution' | 'warning' | 'danger' = 'safe';
+  let statusLabel = '整戶維持安全';
+  let badgeClass = 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40';
+  let textClass = 'text-emerald-600 dark:text-emerald-400';
+
+  if (totalRatio < 130) {
+    status = 'danger';
+    statusLabel = '整戶斷頭警戒';
+    badgeClass = 'bg-rose-600 text-white font-black animate-pulse border border-rose-600 shadow-md';
+    textClass = 'text-rose-500 font-extrabold';
+  } else if (totalRatio < 140) {
+    status = 'warning';
+    statusLabel = '整戶追繳預警';
+    badgeClass = 'bg-amber-500 text-slate-950 font-black border border-amber-400 shadow';
+    textClass = 'text-amber-500 font-bold';
+  } else if (totalRatio < 160) {
+    status = 'caution';
+    statusLabel = '整戶維持觀察';
+    badgeClass = 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/40';
+    textClass = 'text-blue-500 font-semibold';
+  }
+
+  return {
+    totalRatio,
+    formattedTotalRatio: `${totalRatio.toFixed(2)}%`,
+    totalLongValue,
+    totalLongLoan,
+    totalShortCollateral,
+    totalShortMarketValue,
+    totalNumerator,
+    totalDenominator,
+    creditHoldingsCount,
+    status,
+    statusLabel,
+    badgeClass,
+    textClass
+  };
+};
+
+

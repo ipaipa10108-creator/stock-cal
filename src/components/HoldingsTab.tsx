@@ -5,6 +5,8 @@ import {
   calcBreakEvenPrice,
   calcTicksBetween,
   calcEtfPremiumDiscount,
+  calcMarginMaintenanceRatio,
+  calcAccountMarginMaintenanceRatio,
   formatNum,
   formatPct,
   getPnlColorClass,
@@ -105,6 +107,8 @@ export const HoldingsTab: React.FC = () => {
 
   const sortedList = [...pinnedItems, ...unpinnedItems];
 
+  const accountMarginInfo = calcAccountMarginMaintenanceRatio(currentList);
+
   const sortModeLabel = 
     sortMode === 'createdAt' ? '最新加入 (自訂)' :
     sortMode === 'pnl' ? '損益最高' :
@@ -188,6 +192,64 @@ export const HoldingsTab: React.FC = () => {
           <span>{sortModeLabel}</span>
         </button>
       </div>
+
+      {/* 整戶信用交易擔保維持率 Banner */}
+      {accountMarginInfo && (
+        <div className={`p-3.5 rounded-xl border shadow-sm transition space-y-2 ${
+          accountMarginInfo.status === 'danger'
+            ? (isLight ? 'bg-rose-50 border-rose-300 text-rose-900' : 'bg-rose-950/50 border-rose-700/80 text-rose-100')
+            : accountMarginInfo.status === 'warning'
+            ? (isLight ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-amber-950/50 border-amber-700/80 text-amber-100')
+            : (isLight ? 'bg-indigo-50/90 border-indigo-200 text-indigo-950' : 'bg-indigo-950/40 border-indigo-700/60 text-indigo-100')
+        }`}>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2 border-current/15">
+            <div className="flex items-center space-x-2">
+              <i className="fa-solid fa-shield-halved text-indigo-500 text-lg"></i>
+              <div>
+                <div className="font-black text-sm flex items-center space-x-2">
+                  <span>整戶信用交易擔保維持率</span>
+                  <span className="text-xs font-normal opacity-80">({accountMarginInfo.creditHoldingsCount} 筆信用持股)</span>
+                </div>
+                <div className="text-[11px] opacity-75">台灣證券交易所規定：整戶維持率低於 130% 將觸發追繳與斷頭程序</div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2 shrink-0">
+              <div className="text-right">
+                <div className="text-xl font-black">{accountMarginInfo.formattedTotalRatio}</div>
+              </div>
+              <span className={`px-2.5 py-1 text-xs rounded-lg font-black shadow-xs ${accountMarginInfo.badgeClass}`}>
+                {accountMarginInfo.statusLabel}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs pt-1">
+            <div className="p-2 rounded-lg bg-black/5 dark:bg-white/5">
+              <div className="opacity-75 text-[10px]">融資股票市值</div>
+              <div className="font-extrabold text-sm">${formatNum(accountMarginInfo.totalLongValue)}</div>
+            </div>
+            <div className="p-2 rounded-lg bg-black/5 dark:bg-white/5">
+              <div className="opacity-75 text-[10px]">融資總借款金額</div>
+              <div className="font-extrabold text-sm">${formatNum(accountMarginInfo.totalLongLoan)}</div>
+            </div>
+            <div className="p-2 rounded-lg bg-black/5 dark:bg-white/5">
+              <div className="opacity-75 text-[10px]">融券擔保品總額</div>
+              <div className="font-extrabold text-sm">${formatNum(accountMarginInfo.totalShortCollateral)}</div>
+            </div>
+            <div className="p-2 rounded-lg bg-black/5 dark:bg-white/5">
+              <div className="opacity-75 text-[10px]">融券股票市值</div>
+              <div className="font-extrabold text-sm">${formatNum(accountMarginInfo.totalShortMarketValue)}</div>
+            </div>
+          </div>
+
+          {accountMarginInfo.status === 'danger' && (
+            <div className="p-2 rounded-lg bg-rose-500 text-white text-xs font-bold flex items-center space-x-2 animate-pulse">
+              <i className="fa-solid fa-triangle-exclamation text-base"></i>
+              <span>警告：您的整戶維持率已跌破 130% 最低擔保規定，請注意券商追繳通知與斷頭風險！</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 復原拆分橫幅提示 */}
       {lastSplitInfo && (
@@ -365,6 +427,44 @@ export const HoldingsTab: React.FC = () => {
                       <span>
                         手續費 <strong>${formatNum(sellDetails.fee)}</strong> + 證交稅 <strong>${formatNum(sellDetails.tax)}</strong> = 總費用 <strong>${formatNum(sellDetails.fee + sellDetails.tax)}</strong> 元
                       </span>
+                    </div>
+                  );
+                })()}
+
+                {/* 信用交易個股維持率與 130% 斷頭觸發價 */}
+                {(holdingDisplaySettings.showMarginMaintenanceRatio ?? true) && (() => {
+                  const marginRatioInfo = calcMarginMaintenanceRatio(item.buyPrice, item.currentPrice, item.shares, item.tradeType);
+                  if (!marginRatioInfo) return null;
+                  return (
+                    <div className={`mt-2 p-2 rounded-lg text-xs border space-y-1 ${
+                      marginRatioInfo.status === 'danger'
+                        ? (isLight ? 'bg-rose-50 border-rose-300 text-rose-900' : 'bg-rose-950/40 border-rose-700/80 text-rose-200')
+                        : marginRatioInfo.status === 'warning'
+                        ? (isLight ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-amber-950/40 border-amber-700/80 text-amber-200')
+                        : (isLight ? 'bg-indigo-50/70 border-indigo-200 text-indigo-950' : 'bg-slate-900/90 border-indigo-500/40 text-indigo-200')
+                    }`}>
+                      <div className="flex items-center justify-between font-bold text-[11px] border-b pb-1 border-current/15">
+                        <div className="flex items-center space-x-1.5">
+                          <i className="fa-solid fa-shield-halved text-indigo-500"></i>
+                          <span>{marginRatioInfo.isMarginLong ? '融資維持率' : '融券維持率'}</span>
+                        </div>
+                        <div className="flex items-center space-x-1.5">
+                          <span className="font-black text-sm">{marginRatioInfo.formattedRatio}</span>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${marginRatioInfo.badgeClass}`}>
+                            {marginRatioInfo.statusLabel}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[11px] pt-0.5">
+                        <div>
+                          <span className="opacity-75">{marginRatioInfo.isMarginLong ? '融資借款：' : '融券擔保品：'}</span>
+                          <strong className="font-extrabold">${formatNum(marginRatioInfo.loanOrCollateralAmount)}</strong>
+                        </div>
+                        <div className="text-right">
+                          <span className="opacity-75">130% 斷頭價：</span>
+                          <strong className="font-black text-rose-500 dark:text-rose-400 underline">${marginRatioInfo.liquidationPrice.toFixed(2)}</strong>
+                        </div>
+                      </div>
                     </div>
                   );
                 })()}

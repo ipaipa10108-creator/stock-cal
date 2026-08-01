@@ -137,5 +137,7 @@ export interface HoldingDisplaySettings {
   showFeeTaxDetails: boolean;     // 預估交易費用 (賣出手續費與證交稅)
   showLotDetails: boolean;        // 合併筆記明細 (批次買進明細)
   showActivityLogs: boolean;      // 交易與變更履歷 (記錄賣出均價與還原履歷)
+  showMarginMaintenanceRatio?: boolean; // 信用交易維持率 (個股融資融券維持率與整戶擔保維持率)
 }
+
 

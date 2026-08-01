@@ -1,6 +1,6 @@
 import React from 'react';
 import { useStockStore } from '../../store/useStockStore';
-import { calcTradeDetails, formatNum, getPnlColorClass } from '../../utils/stockMath';
+import { calcTradeDetails, calcAccountMarginMaintenanceRatio, formatNum, getPnlColorClass } from '../../utils/stockMath';
 
 export const ProfitSummaryModal: React.FC = () => {
   const {
@@ -18,6 +18,7 @@ export const ProfitSummaryModal: React.FC = () => {
 
   const isLight = themeMode === 'light';
   const currentList = holdingsData[currentAccountId] || [];
+  const accountMarginInfo = calcAccountMarginMaintenanceRatio(currentList);
   
   // Category totals
   let catPnl = 0;
@@ -143,6 +144,17 @@ export const ProfitSummaryModal: React.FC = () => {
               <span className={`font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>總入帳金額：</span>
               <span className="font-bold text-sm">{formatNum(accInflow)}</span>
             </div>
+            {accountMarginInfo && (
+              <div className="flex justify-between items-center py-1 px-1.5 rounded bg-indigo-500/10 border border-indigo-500/30">
+                <span className="font-bold text-indigo-600 dark:text-indigo-400 flex items-center space-x-1">
+                  <i className="fa-solid fa-shield-halved"></i>
+                  <span>整戶維持率：</span>
+                </span>
+                <span className="font-black text-sm">
+                  {accountMarginInfo.formattedTotalRatio} ({accountMarginInfo.statusLabel})
+                </span>
+              </div>
+            )}
             <div className="flex justify-between items-center">
               <span className={`font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>投資上限：</span>
               <span className="font-bold text-sm">{accountLimitInput ? `$${formatNum(accountLimitInput)}` : '未設定'}</span>

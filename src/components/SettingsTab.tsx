@@ -139,6 +139,7 @@ export const SettingsTab: React.FC = () => {
             </p>
             <div className="space-y-2 pt-1">
               {[
+                { key: 'showMarginMaintenanceRatio', title: '信用交易維持率', desc: '融資/融券個股維持率、130% 斷頭觸發價與整戶擔保維持率' },
                 { key: 'showTickInfo', title: '價差幾檔資訊', desc: '距離保本打平還差幾檔升降單位，或目前已獲利幾檔檔位' },
                 { key: 'showEtfDiscount', title: 'ETF 折溢價資訊', desc: '基金即時淨值 (NAV)、單股折溢價金額與持股折溢價總額' },
                 { key: 'showBreakEvenPrice', title: '保本價資訊', desc: '考慮買賣雙邊手續費與證交稅後的損益打平參考價格' },

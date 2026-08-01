@@ -163,6 +163,44 @@ export const GuideTab: React.FC = () => {
               融資買進後持有數日才賣出（資賣平倉），或融券賣出後持有數日才買回（券買平倉）。需注意融資利息（約6-7%/年）與融券費率。
             </p>
           </div>
+
+          {/* 信用交易維持率與斷頭機制教學 */}
+          <div className={`p-4 rounded-2xl border shadow transition sm:col-span-2 ${
+            isLight ? 'bg-indigo-50/70 border-indigo-200' : 'bg-indigo-950/40 border-indigo-800/60'
+          }`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="px-2.5 py-1 bg-indigo-600 text-white font-bold rounded-lg text-xs border border-indigo-500 shadow-xs">
+                信用交易維持率教學
+              </span>
+              <span className={`text-xs font-bold ${isLight ? 'text-indigo-700' : 'text-indigo-300'}`}>130% 斷頭警戒</span>
+            </div>
+            <h3 className="font-extrabold text-base mb-1 text-indigo-950 dark:text-indigo-100">
+              融資/融券維持率計算與斷頭機制
+            </h3>
+            <p className={`text-xs leading-relaxed mb-3 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+              維持率是衡量股票市值與券商借款比率的風險指標。當股票市值下跌（融資）或上漲（融券）導致整戶維持率跌破 130% 時，券商將發出追繳通知，若未限期補足將遭強制賣出平倉（斷頭）。
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div className={`p-3 rounded-xl border space-y-1.5 ${
+                isLight ? 'bg-white border-indigo-100 text-slate-800' : 'bg-slate-900/90 border-slate-700 text-slate-200'
+              }`}>
+                <div className="font-black text-blue-600 dark:text-blue-400">📈 融資維持率 (Margin Long)</div>
+                <div>• <strong>公式</strong>：股票市值 ÷ 融資金額 × 100%</div>
+                <div>• <strong>融資比率</strong>：上市股票最高融資 6 成（自備款 4 成）</div>
+                <div>• <strong>初始維持率</strong>：100% ÷ 60% ≒ <strong>166.67%</strong></div>
+                <div>• <strong>130% 斷頭價</strong>：買進價格 × 60% × 1.3 ＝ <strong>買價 × 78%</strong></div>
+              </div>
+              <div className={`p-3 rounded-xl border space-y-1.5 ${
+                isLight ? 'bg-white border-indigo-100 text-slate-800' : 'bg-slate-900/90 border-slate-700 text-slate-200'
+              }`}>
+                <div className="font-black text-purple-600 dark:text-purple-400">📉 融券維持率 (Margin Short)</div>
+                <div>• <strong>公式</strong>：(融券賣出價款 + 融券保證金) ÷ 當前股票市值 × 100%</div>
+                <div>• <strong>保證金成數</strong>：通常為 9 成（自備 90% 保證金）</div>
+                <div>• <strong>初始維持率</strong>：(100% + 90%) ＝ <strong>190.00%</strong></div>
+                <div>• <strong>130% 斷頭價</strong>：賣出價格 × 190% ÷ 130% ≒ <strong>賣價 × 146.15%</strong></div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
